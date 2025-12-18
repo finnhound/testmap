@@ -182,8 +182,7 @@ function addMarker(map,lngLat,index,isSearch=false,name=''){
   if(isSearch){
     if(searchMarker) searchMarker.remove();
     searchMarker = m;
-    searchMarkerName = name;
-    const el = document.createElement('div'); el.style.fontSize='12px'; el.style.textAlign='center'; el.innerText=name; m.getElement().appendChild(el);
+    searchMarkerName = name
     if(!routingEnabled){
       m.getElement().addEventListener('click', ()=>{ searchMarker.remove(); searchMarker = null; searchMarkerName=''; });
     }
@@ -283,3 +282,4 @@ document.addEventListener('click', e=> { if(!searchResults.contains(e.target) &&
 </script>
 </body>
 </html>
+
