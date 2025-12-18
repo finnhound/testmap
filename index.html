@@ -1,239 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Cartohound Map</title>
+<meta charset="utf-8" />
+<title>Cartohound – Stable Build</title>
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
 <style>
-html,body{margin:0;height:100%;font-family:Inter,system-ui,sans-serif;}
-.map{position:absolute;inset:0}
-
-/* LEFT PANEL */
-#controls{
-  position:absolute;top:20px;left:20px;z-index:30;
-  display:flex;flex-direction:column;gap:10px;
-}
-#searchBox{
-  width:280px;padding:10px 14px;font-size:15px;
-  border-radius:999px;border:1px solid #ccc;
-}
-#searchResults{
-  background:white;border-radius:12px;border:1px solid #ccc;
-  max-height:200px;overflow:auto;display:none;
-}
-.searchItem{padding:8px 12px;cursor:pointer}
-.searchItem:hover{background:#eee}
-
-/* Routing dropdown */
-#routingToggle{
-  background:white;border:1px solid #ccc;
-  padding:8px 12px;border-radius:10px;cursor:pointer;
-}
-#routingPanel{
-  display:none;flex-direction:column;gap:8px;
-  padding:12px;background:rgba(255,255,255,0.75);
-  backdrop-filter:blur(6px);border-radius:12px;
-  border:1px solid #ccc;
-}
-#routingPanel.open{display:flex}
-
-/* Bottom left buttons */
-#bottomLeft{
-  position:absolute;bottom:20px;left:20px;z-index:30;
-  display:flex;gap:8px;
-}
-.iconBtn{
-  width:44px;height:44px;background:white;
-  border-radius:10px;border:1px solid #ccc;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;
-}
-.iconBtn img,.iconBtn svg{width:22px;height:22px}
-
-/* Maplibre controls */
-.maplibregl-ctrl-bottom-right{
-  transform:scale(1.25);margin:20px;
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: Inter, system-ui, sans-serif;
 }
 
-/* Info */
-.route-info{
-  position:absolute;top:20px;left:50%;
-  transform:translateX(-50%);
-  background:white;padding:8px 14px;
-  border-radius:10px;border:1px solid #333;
-  display:none;z-index:40;
+#map-streets, #map-hybrid {
+  position: absolute;
+  inset: 0;
 }
-.loading{
-  position:absolute;top:60px;left:50%;
-  transform:translateX(-50%);
-  background:yellow;padding:6px 12px;
-  border-radius:8px;display:none;z-index:50;
+
+#map-hybrid { display: none; }
+
+/* Search */
+#searchWrap {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 10;
+  width: 280px;
 }
-.maptiler-logo{
-  position:absolute;left:10px;bottom:10px;z-index:30;
+
+#search {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 999px;
+  border: 1px solid #bbb;
+}
+
+#results {
+  margin-top: 6px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  overflow: hidden;
+  display: none;
+}
+
+.result {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.result:hover { background: #eee; }
+
+/* Buttons */
+#buttons {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn img, .btn svg {
+  width: 22px;
+  height: 22px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="map-streets" class="map"></div>
-<div id="map-hybrid" class="map" style="display:none"></div>
+<div id="map-streets"></div>
+<div id="map-hybrid"></div>
 
-<div id="controls">
-  <input id="searchBox" placeholder="Search">
-  <div id="searchResults"></div>
-
-  <button id="routingToggle">Routing ▾</button>
-  <div id="routingPanel">
-    <select id="mode">
-      <option value="driving-car">Car</option>
-      <option value="foot-walking">Walking</option>
-      <option value="cycling-regular">Cycling</option>
-    </select>
-    <button id="resetRoute">Reset route</button>
-  </div>
+<div id="searchWrap">
+  <input id="search" placeholder="Search location">
+  <div id="results"></div>
 </div>
 
-<div id="bottomLeft">
-  <div id="hybridToggle" class="iconBtn">
+<div id="buttons">
+  <div id="toggleLayer" class="btn">
     <img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg">
   </div>
-  <div id="downloadMap" class="iconBtn"></div>
 </div>
 
-<div class="route-info" id="routeInfo"></div>
-<div class="loading" id="loading">Loading…</div>
-
-<a class="maptiler-logo" href="https://www.maptiler.com" target="_blank">
-  <img src="https://api.maptiler.com/resources/logo.svg">
-</a>
-
 <script>
-/* ================= CONFIG ================= */
-const ORS_KEY="eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjFjMzkyNDVlOGIyNjQxYjVhMDRhNWEwNjdlMTM4MDc0IiwiaCI6Im11cm11cjY0In0=";
-const MT_KEY="kUOJqqeRX1BMaXctsgK5";
-const STREETS=`https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
-const HYBRID=`https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
+/* ================== CONFIG ================== */
+const MT_KEY = "kUOJqqeRX1BMaXctsgK5";
+const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjFjMzkyNDVlOGIyNjQxYjVhMDRhNWEwNjdlMTM4MDc0IiwiaCI6Im11cm11cjY0In0=";
 
-/* ================= MAPS ================= */
-const saved=JSON.parse(localStorage.getItem("mapView")||"null");
+const STREETS = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
+const HYBRID  = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
 
-const mapStreets=new maplibregl.Map({
-  container:"map-streets",style:STREETS,
-  center:saved?.center||[0,0],zoom:saved?.zoom||1,
-  preserveDrawingBuffer:true,
-  attributionControl:true
-});
-const mapHybrid=new maplibregl.Map({
-  container:"map-hybrid",style:HYBRID,
-  center:saved?.center||[0,0],zoom:saved?.zoom||1,
-  preserveDrawingBuffer:true,
-  attributionControl:true
+/* ================== MAPS ================== */
+const mapStreets = new maplibregl.Map({
+  container: "map-streets",
+  style: STREETS,
+  center: [0, 0],
+  zoom: 2,
+  attributionControl: true,
+  preserveDrawingBuffer: true
 });
 
-[mapStreets,mapHybrid].forEach(m=>{
-  m.addControl(new maplibregl.NavigationControl(),"bottom-right");
+const mapHybrid = new maplibregl.Map({
+  container: "map-hybrid",
+  style: HYBRID,
+  center: [0, 0],
+  zoom: 2,
+  attributionControl: true,
+  preserveDrawingBuffer: true
+});
+
+/* Proper attribution */
+[mapStreets, mapHybrid].forEach(m => {
   m.addControl(new maplibregl.AttributionControl({
-    compact:true,
-    customAttribution:[
+    compact: true,
+    customAttribution: [
       "© OpenStreetMap contributors",
       "© MapTiler",
       "© openrouteservice.org by HeiGIT"
     ]
   }));
+  m.addControl(new maplibregl.NavigationControl(), "bottom-right");
 });
 
-/* ================= SYNC ================= */
-let syncing=false;
-function sync(a,b){
-  if(syncing)return;
-  syncing=true;
-  b.jumpTo({center:a.getCenter(),zoom:a.getZoom()});
-  syncing=false;
+/* ================== SYNC ================== */
+let syncing = false;
+function sync(a, b) {
+  if (syncing) return;
+  syncing = true;
+  b.jumpTo({ center: a.getCenter(), zoom: a.getZoom() });
+  syncing = false;
 }
-mapStreets.on("move",()=>sync(mapStreets,mapHybrid));
-mapHybrid.on("move",()=>sync(mapHybrid,mapStreets));
+mapStreets.on("move", () => sync(mapStreets, mapHybrid));
+mapHybrid.on("move", () => sync(mapHybrid, mapStreets));
 
-function saveView(){
-  const m=current==="streets"?mapStreets:mapHybrid;
-  localStorage.setItem("mapView",JSON.stringify({
-    center:[m.getCenter().lng,m.getCenter().lat],
-    zoom:m.getZoom()
-  }));
-}
-mapStreets.on("moveend",saveView);
-mapHybrid.on("moveend",saveView);
-
-/* ================= STYLE TOGGLE ================= */
-let current=localStorage.getItem("mapStyle")||"streets";
-function showHybrid(h){
-  document.getElementById("map-streets").style.display=h?"none":"block";
-  document.getElementById("map-hybrid").style.display=h?"block":"none";
-  (h?mapHybrid:mapStreets).resize();
-  current=h?"hybrid":"streets";
-  localStorage.setItem("mapStyle",current);
-}
-showHybrid(current==="hybrid");
-hybridToggle.onclick=()=>showHybrid(current==="streets");
-
-/* ================= DOWNLOAD ================= */
-downloadMap.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3"><path d="M9 11a3 3 0 1 0 6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/></svg>`;
-downloadMap.onclick=()=>{
-  controls.style.display="none";
-  bottomLeft.style.display="none";
-  setTimeout(()=>{
-    const m=current==="streets"?mapStreets:mapHybrid;
-    const url=m.getCanvas().toDataURL("image/png");
-    controls.style.display="flex";
-    bottomLeft.style.display="flex";
-    const a=document.createElement("a");
-    a.href=url;a.download="map.png";a.click();
-  },60);
+/* ================== TOGGLE ================== */
+let hybrid = false;
+toggleLayer.onclick = () => {
+  hybrid = !hybrid;
+  document.getElementById("map-streets").style.display = hybrid ? "none" : "block";
+  document.getElementById("map-hybrid").style.display  = hybrid ? "block" : "none";
+  (hybrid ? mapHybrid : mapStreets).resize();
 };
 
-/* ================= ROUTING + SEARCH ================= */
-/* (unchanged logic – fully restored) */
+/* ================== SEARCH ================== */
+const search = document.getElementById("search");
+const results = document.getElementById("results");
+let pin = null;
 
-routingToggle.onclick=()=>routingPanel.classList.toggle("open");
+search.addEventListener("input", () => {
+  const q = search.value.trim();
+  if (!q) { results.style.display = "none"; return; }
 
-/* ---- NOMINATIM ---- */
-const searchBox=document.getElementById("searchBox");
-const searchResults=document.getElementById("searchResults");
-let debounce;
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(list => {
+      results.innerHTML = "";
+      if (!list.length) return;
+      list.slice(0, 5).forEach(p => {
+        const d = document.createElement("div");
+        d.className = "result";
+        d.textContent = p.display_name;
+        d.onclick = () => {
+          results.style.display = "none";
+          search.value = "";
 
-searchBox.oninput=()=>{
-  clearTimeout(debounce);
-  const q=searchBox.value.trim();
-  if(!q){searchResults.style.display="none";return;}
-  debounce=setTimeout(()=>{
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
-      .then(r=>r.json()).then(res=>{
-        searchResults.innerHTML="";
-        if(!res.length){searchResults.style.display="none";return;}
-        res.slice(0,5).forEach(r=>{
-          const d=document.createElement("div");
-          d.className="searchItem";
-          d.textContent=r.display_name;
-          d.onclick=()=>{
-            const m=current==="streets"?mapStreets:mapHybrid;
-            m.flyTo({center:[+r.lon,+r.lat],zoom:14});
-            searchResults.style.display="none";
-            searchBox.value="";
-          };
-          searchResults.appendChild(d);
-        });
-        searchResults.style.display="block";
+          if (pin) pin.remove();
+          const m = hybrid ? mapHybrid : mapStreets;
+
+          pin = new maplibregl.Marker()
+            .setLngLat([+p.lon, +p.lat])
+            .addTo(m);
+
+          m.flyTo({ center: [+p.lon, +p.lat], zoom: 14 });
+        };
+        results.appendChild(d);
       });
-  },300);
-};
-document.onclick=e=>{
-  if(!searchResults.contains(e.target)&&e.target!==searchBox)
-    searchResults.style.display="none";
-};
+      results.style.display = "block";
+    });
+});
+
+document.addEventListener("click", e => {
+  if (!results.contains(e.target) && e.target !== search)
+    results.style.display = "none";
+});
 </script>
 
 </body>
