@@ -8,6 +8,7 @@
 html, body { margin:0; height:100%; }
 .map { width:100%; height:100%; position:absolute; top:0; left:0; }
 #controls { position:absolute; top:10px; right:10px; z-index:20; background:white; padding:10px; border:1px solid #ccc; font:14px sans-serif; display:flex; flex-direction:column; gap:5px; }
+#hybridToggle { position:absolute; top:10px; left:10px; z-index:20; background:white; padding:6px 10px; border:1px solid #ccc; cursor:pointer; font:14px sans-serif; }
 #info { margin-top:5px; }
 button, select { font:14px sans-serif; }
 .maptiler-logo { position:absolute; left:10px; bottom:10px; z-index:20; }
@@ -18,8 +19,9 @@ button, select { font:14px sans-serif; }
 <div id="map-streets" class="map"></div>
 <div id="map-hybrid" class="map" style="display:none;"></div>
 
+<div id="hybridToggle">Hybrid</div>
+
 <div id="controls">
-  <button id="toggleMap">Hybrid</button>
   <button id="toggleRoute">Enable Routing</button>
   <select id="mode">
     <option value="driving">Driving</option>
@@ -63,23 +65,23 @@ const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL,
   map.addControl(new maplibregl.AttributionControl({compact:false}),'bottom-right');
 });
 
-// --- Map Toggle ---
-const toggleMap = document.getElementById('toggleMap');
-function showMap(style){
-  if(style==='streets'){
-    document.getElementById('map-streets').style.display='block';
-    document.getElementById('map-hybrid').style.display='none';
-    toggleMap.textContent='Hybrid';
-  } else {
+// --- Hybrid Toggle ---
+const hybridToggle = document.getElementById('hybridToggle');
+function showHybrid(isHybrid){
+  if(isHybrid){
     document.getElementById('map-streets').style.display='none';
     document.getElementById('map-hybrid').style.display='block';
-    toggleMap.textContent='Streets';
+    mapHybrid.resize(); // fix tiny-box rendering
+  } else {
+    document.getElementById('map-streets').style.display='block';
+    document.getElementById('map-hybrid').style.display='none';
+    mapStreets.resize();
   }
-  currentStyle = style;
+  currentStyle = isHybrid?'hybrid':'streets';
   localStorage.setItem(STORAGE_STYLE,currentStyle);
 }
-showMap(currentStyle);
-toggleMap.onclick = ()=>showMap(currentStyle==='streets'?'hybrid':'streets');
+showHybrid(currentStyle==='hybrid');
+hybridToggle.onclick = ()=>showHybrid(currentStyle==='streets');
 
 // --- Sync Views ---
 let syncing=false;
@@ -145,11 +147,16 @@ function clearRoute(){
   routePoints=[];
 }
 
-// --- Fetch Route from OSRM ---
+// --- Fetch Route using OSRM ---
 function fetchRoute(){
+  if(routePoints.length!==2) return;
   const coords = `${routePoints[0][0]},${routePoints[0][1]};${routePoints[1][0]},${routePoints[1][1]}`;
-  const profile = routingMode; // driving, walking, cycling
-  const url = `https://router.project-osrm.org/route/v1/${profile}/${coords}?overview=full&geometries=geojson`;
+  let profile = routingMode;
+  if(routingMode==='walking') profile='foot';
+  if(routingMode==='cycling') profile='bike';
+  // Using OSRM demo server
+  const osrmProfile = routingMode; // OSRM supports 'driving', 'walking', 'cycling'
+  const url = `https://router.project-osrm.org/route/v1/${osrmProfile}/${coords}?overview=full&geometries=geojson`;
   fetch(url).then(res=>res.json()).then(data=>{
     if(!data.routes || !data.routes[0]) return;
     const routeGeoJSON = { type:'Feature', geometry:data.routes[0].geometry };
