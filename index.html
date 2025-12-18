@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
 <style>
-html, body { margin:0; height:100%; }
-.map { width:100%; height:100%; position:absolute; top:0; left:0; }
+html, body {margin:0; height:100%;}
+.map {width:100%; height:100%; position:absolute; top:0; left:0;}
 #controls {
   position:absolute; top:10px; right:10px; z-index:20;
   background:white; padding:10px; border:1px solid #ccc;
@@ -17,8 +19,8 @@ html, body { margin:0; height:100%; }
   background:white; padding:6px 10px; border:1px solid #ccc;
   cursor:pointer; font:14px sans-serif;
 }
-#info { margin-top:5px; }
-button, select { font:14px sans-serif; }
+#info {margin-top:5px;}
+button, select {font:14px sans-serif;}
 .maptiler-logo {
   position:absolute; left:10px; bottom:10px; z-index:20;
 }
@@ -32,7 +34,7 @@ button, select { font:14px sans-serif; }
 <div id="controls">
   <button id="toggleRoute">Enable Routing</button>
   <select id="mode">
-    <option value="driving">Car</option>
+    <option value="car">Car</option>
     <option value="foot">Walking</option>
     <option value="bike">Cycling</option>
   </select>
@@ -51,6 +53,9 @@ const KEY = '1xuGVLLA0XJlvXZT2dFB';
 const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${KEY}`;
 const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${KEY}`;
 
+// Public OSRM hosts (no self‑hosting)
+const OSRM_PUBLIC = "https://routing.openstreetmap.de/route/v1";
+
 const STORAGE_VIEW = 'mapView';
 const STORAGE_STYLE = 'mapStyle';
 const STORAGE_ROUTE = 'mapRouteEnabled';
@@ -62,10 +67,9 @@ let routingMode = document.getElementById('mode').value;
 
 let routePoints = [];
 let markers = [];
-
 const info = document.getElementById('info');
 
-// --- Initialize Maps ---
+// Initialize maps
 const mapStreets = new maplibregl.Map({
   container:'map-streets',
   style:STREETS_URL,
@@ -81,13 +85,13 @@ const mapHybrid = new maplibregl.Map({
   attributionControl:false
 });
 
-// --- Controls ---
-[mapStreets, mapHybrid].forEach(map=>{
-  map.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left');
-  map.addControl(new maplibregl.AttributionControl({compact:false}),'bottom-right');
+// Add navigation + attribution
+[mapStreets, mapHybrid].forEach(m=>{
+  m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left');
+  m.addControl(new maplibregl.AttributionControl({compact:false}),'bottom-right');
 });
 
-// --- Hybrid Toggle ---
+// Hybrid toggle
 const hybridToggle = document.getElementById('hybridToggle');
 function showHybrid(isHybrid){
   if(isHybrid){
@@ -105,30 +109,30 @@ function showHybrid(isHybrid){
 showHybrid(currentStyle==='hybrid');
 hybridToggle.onclick = ()=>showHybrid(currentStyle==='streets');
 
-// --- Sync Views ---
+// Sync views
 let syncing=false;
-function syncView(sourceMap,targetMap){
+function syncView(src,tgt){
   if(syncing) return;
-  syncing=true;
-  const c=sourceMap.getCenter(), z=sourceMap.getZoom();
-  targetMap.jumpTo({center:[c.lng,c.lat], zoom:z});
+  syncing = true;
+  const c = src.getCenter(), z=src.getZoom();
+  tgt.jumpTo({center:[c.lng,c.lat], zoom:z});
   syncing=false;
 }
 mapStreets.on('move',()=>syncView(mapStreets,mapHybrid));
 mapHybrid.on('move',()=>syncView(mapHybrid,mapStreets));
 
-// --- Persist View ---
+// Persist view
 function saveView(){
   const activeMap = currentStyle==='streets'?mapStreets:mapHybrid;
   const c=activeMap.getCenter(), z=activeMap.getZoom();
   localStorage.setItem(STORAGE_VIEW,JSON.stringify({center:[c.lng,c.lat], zoom:z}));
 }
-mapStreets.on('moveend', saveView);
-mapHybrid.on('moveend', saveView);
+mapStreets.on('moveend',saveView);
+mapHybrid.on('moveend',saveView);
 
-// --- Routing Toggle ---
+// Routing toggle
 const toggleRouteBtn = document.getElementById('toggleRoute');
-function updateRouteButton(){ toggleRouteBtn.textContent = routingEnabled?'Disable Routing':'Enable Routing'; }
+function updateRouteButton(){ toggleRouteBtn.textContent = routingEnabled?'Disable Routing':'Enable Routing';}
 updateRouteButton();
 toggleRouteBtn.onclick = ()=>{
   routingEnabled = !routingEnabled;
@@ -137,29 +141,29 @@ toggleRouteBtn.onclick = ()=>{
   if(!routingEnabled) clearRoute();
 };
 
-// --- Mode Selector ---
+// Mode select
 document.getElementById('mode').onchange = function(){
-  routingMode = this.value; // driving, foot, bike
+  routingMode = this.value;
   if(routePoints.length===2) fetchRoute();
 };
 
-// --- Reset ---
+// Reset
 document.getElementById('resetRoute').onclick = clearRoute;
 
-// --- Routing Functions ---
-function addMarker(map,lngLat,index){
-  const m = new maplibregl.Marker({draggable:true})
-    .setLngLat(lngLat)
-    .addTo(map);
+// Add draggable markers
+function addMarker(map,lngLat,i){
+  const m = new maplibregl.Marker({draggable:true}).setLngLat(lngLat).addTo(map);
   m.on('dragend',()=>{
-    routePoints[index] = [m.getLngLat().lng, m.getLngLat().lat];
+    routePoints[i] = [m.getLngLat().lng, m.getLngLat().lat];
     if(routePoints.length===2) fetchRoute();
   });
   markers.push(m);
 }
 
+// Clear route
 function clearRoute(){
-  markers.forEach(m=>m.remove()); markers=[];
+  markers.forEach(m=>m.remove());
+  markers=[];
   info.innerHTML='';
   [mapStreets,mapHybrid].forEach(m=>{
     if(m.getLayer('route')) m.removeLayer('route');
@@ -168,11 +172,11 @@ function clearRoute(){
   routePoints=[];
 }
 
-// --- Fetch Route using OSRM ---
+// Fetch route from public OSRM
 function fetchRoute(){
   if(routePoints.length!==2) return;
   const coords = `${routePoints[0][0]},${routePoints[0][1]};${routePoints[1][0]},${routePoints[1][1]}`;
-  const url = `https://router.project-osrm.org/route/v1/${routingMode}/${coords}?overview=full&geometries=geojson`;
+  const url = `${OSRM_PUBLIC}/${routingMode}/${coords}?overview=full&geometries=geojson`;
   fetch(url).then(res=>res.json()).then(data=>{
     if(!data.routes || !data.routes[0]) return;
     const routeGeoJSON = { type:'Feature', geometry:data.routes[0].geometry };
@@ -180,7 +184,7 @@ function fetchRoute(){
     const durationMin = Math.round(data.routes[0].duration/60);
     info.innerHTML=`Distance: ${distanceKm} km<br>Duration: ${durationMin} min`;
     [mapStreets,mapHybrid].forEach(m=>{
-      if(m.getSource('route')) { m.removeLayer('route'); m.removeSource('route'); }
+      if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }
       m.addSource('route',{type:'geojson', data:routeGeoJSON});
       m.addLayer({id:'route', type:'line', source:'route',
         layout:{'line-cap':'round','line-join':'round'},
@@ -189,18 +193,19 @@ function fetchRoute(){
   });
 }
 
-// --- Map Click ---
+// Map click
 function onMapClick(e){
   if(!routingEnabled) return;
   const map = currentStyle==='streets'?mapStreets:mapHybrid;
   if(routePoints.length===2) clearRoute();
   const lngLat=[e.lngLat.lng,e.lngLat.lat];
-  addMarker(map, lngLat, routePoints.length);
+  addMarker(map,lngLat, routePoints.length);
   routePoints.push(lngLat);
   if(routePoints.length===2) fetchRoute();
 }
 
-[mapStreets,mapHybrid].forEach(m=>m.on('click', onMapClick));
+[mapStreets,mapHybrid].forEach(m=>m.on('click',onMapClick));
 </script>
+
 </body>
 </html>
