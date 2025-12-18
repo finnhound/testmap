@@ -24,10 +24,7 @@ html, body { margin: 0; height: 100%; font-family: 'Inter', system-ui, sans-seri
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s;
 }
-#hybridToggle.active {
-  background: #ddd;
-}
-
+#hybridToggle.active { background: #ddd; }
 #hybridToggle img { width: 24px; height: 24px; }
 
 button, select, input { font: 14px 'Inter', system-ui, sans-serif; }
@@ -41,11 +38,13 @@ button, select, input { font: 14px 'Inter', system-ui, sans-serif; }
 }
 
 #searchBox {
-  position: absolute; top: 10px; left: 10px; z-index: 25;
-  display: flex; flex-direction: column; width: 250px;
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  z-index: 25; display: flex; flex-direction: column; width: 300px;
 }
 #searchInput {
   padding: 6px 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 #searchResults {
   background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto;
@@ -110,6 +109,7 @@ let routingMode = document.getElementById('mode').value;
 
 let routePoints = [];
 let markers = [];
+let searchMarker = null;
 const routeInfo = document.getElementById('route-info');
 
 // Initialize maps
@@ -198,6 +198,7 @@ function clearRoute(){
     if(m.getSource('route')) m.removeSource('route');
   });
   routePoints=[];
+  if(searchMarker){ searchMarker.remove(); searchMarker=null; }
 }
 
 function fetchRoute(){
@@ -270,8 +271,27 @@ searchInput.addEventListener('input', ()=>{
             const lngLat = [parseFloat(place.lon), parseFloat(place.lat)];
             const activeMap = currentStyle==='streets'?mapStreets:mapHybrid;
             activeMap.flyTo({center:lngLat, zoom:14});
+
+            // Remove previous search marker
+            if(searchMarker) searchMarker.remove();
+            searchMarker = new maplibregl.Marker({color:'red', draggable:true})
+              .setLngLat(lngLat)
+              .addTo(activeMap);
+            searchMarker.on('dragend', ()=>{ 
+              if(routingEnabled){
+                routePoints[routePoints.length-1] = [searchMarker.getLngLat().lng, searchMarker.getLngLat().lat];
+                if(routePoints.length===2) fetchRoute();
+              }
+            });
+
+            // Use search pin as first route point if routing is enabled
+            if(routingEnabled){
+              if(routePoints.length===2) clearRoute();
+              routePoints.push(lngLat);
+              if(routePoints.length===2) fetchRoute();
+            }
+
             searchResults.style.display='none';
-            searchInput.value = place.display_name;
           });
           searchResults.appendChild(div);
         });
@@ -279,6 +299,7 @@ searchInput.addEventListener('input', ()=>{
       });
   }, 300);
 });
+
 document.addEventListener('click', (e)=>{
   if(!document.getElementById('searchBox').contains(e.target)) searchResults.style.display='none';
 });
