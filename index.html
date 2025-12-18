@@ -6,20 +6,21 @@
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
 html, body { margin:0; height:100%; }
-#map { width:100%; height:100%; }
+.map { width:100%; height:100%; position:absolute; top:0; left:0; }
 #toggle {
-  position:absolute; top:10px; right:10px; z-index:10;
+  position:absolute; top:10px; right:10px; z-index:20;
   padding:6px 10px; background:white; border:1px solid #ccc; cursor:pointer;
   font:14px sans-serif;
 }
 .maptiler-logo {
-  position:absolute; left:10px; bottom:10px; z-index:10;
+  position:absolute; left:10px; bottom:10px; z-index:20;
 }
 </style>
 </head>
 <body>
 
-<div id="map"></div>
+<div id="map-streets" class="map"></div>
+<div id="map-hybrid" class="map" style="display:none;"></div>
 <button id="toggle">Hybrid</button>
 
 <a class="maptiler-logo" href="https://www.maptiler.com" target="_blank" rel="noopener">
@@ -28,11 +29,8 @@ html, body { margin:0; height:100%; }
 
 <script>
 const KEY = '1xuGVLLA0XJlvXZT2dFB';
-
-const STYLES = {
-  streets: `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${KEY}`,
-  hybrid: `https://api.maptiler.com/maps/hybrid/style.json?key=${KEY}`
-};
+const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${KEY}`;
+const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${KEY}`;
 
 const STORAGE_VIEW = 'mapView';
 const STORAGE_STYLE = 'mapStyle';
@@ -40,76 +38,63 @@ const STORAGE_STYLE = 'mapStyle';
 const savedView = JSON.parse(localStorage.getItem(STORAGE_VIEW) || 'null');
 let currentStyle = localStorage.getItem(STORAGE_STYLE) || 'streets';
 
-// Main map
-const map = new maplibregl.Map({
-  container: 'map',
-  style: STYLES[currentStyle],
+// Initialize Streets Map
+const mapStreets = new maplibregl.Map({
+  container: 'map-streets',
+  style: STREETS_URL,
   center: savedView?.center || [0,0],
   zoom: savedView?.zoom ?? 1,
-  attributionControl: false
+  attributionControl:false
 });
 
-// Attribution & Navigation
-map.addControl(new maplibregl.AttributionControl({ compact:false }), 'bottom-right');
-map.addControl(new maplibregl.NavigationControl(), 'top-left');
+// Initialize Hybrid Map
+const mapHybrid = new maplibregl.Map({
+  container: 'map-hybrid',
+  style: HYBRID_URL,
+  center: savedView?.center || [0,0],
+  zoom: savedView?.zoom ?? 1,
+  attributionControl:false
+});
 
+// Add attribution & navigation
+[mapStreets, mapHybrid].forEach(map => {
+  map.addControl(new maplibregl.NavigationControl(), 'top-left');
+  map.addControl(new maplibregl.AttributionControl({compact:false}), 'bottom-right');
+});
+
+// Toggle button
 const toggle = document.getElementById('toggle');
 
-// =================== Preload streets tiles ===================
-const preloadMap = new maplibregl.Map({
-  container: document.createElement('div'), // invisible
-  style: STYLES.streets,
-  center: savedView?.center || [0,0],
-  zoom: savedView?.zoom ?? 1,
-  interactive: false,
-  preserveDrawingBuffer: false,
-  attributionControl: false
-});
-// This map stays hidden and caches tiles
-
-// =================== Style switch function ===================
-function switchStyle(name) {
-  // If switching back to streets, ensure tiles are ready
-  if (name === 'streets') {
-    // wait until preload map fully loaded
-    if (!preloadMap.isStyleLoaded()) {
-      preloadMap.once('load', () => {
-        map.setStyle(STYLES.streets);
-      });
-    } else {
-      map.setStyle(STYLES.streets);
-    }
-  } else {
-    map.setStyle(STYLES.hybrid);
+function showMap(style) {
+  if(style==='streets'){
+    document.getElementById('map-streets').style.display='block';
+    document.getElementById('map-hybrid').style.display='none';
+    toggle.textContent = 'Hybrid';
+  }else{
+    document.getElementById('map-streets').style.display='none';
+    document.getElementById('map-hybrid').style.display='block';
+    toggle.textContent = 'Streets';
   }
-
-  map.once('styledata', () => {
-    toggle.textContent = name === 'streets' ? 'Hybrid' : 'Streets';
-    currentStyle = name;
-    localStorage.setItem(STORAGE_STYLE, currentStyle);
-  });
+  currentStyle = style;
+  localStorage.setItem(STORAGE_STYLE,currentStyle);
 }
 
-// Initialize button text
-map.on('load', () => {
-  toggle.textContent = currentStyle === 'streets' ? 'Hybrid' : 'Streets';
-});
+// Initialize button text & visibility
+showMap(currentStyle);
 
-// Toggle click
 toggle.onclick = () => {
-  const newStyle = currentStyle === 'streets' ? 'hybrid' : 'streets';
-  switchStyle(newStyle);
+  showMap(currentStyle==='streets'?'hybrid':'streets');
 };
 
-// Save view
-map.on('moveend', () => {
-  const c = map.getCenter();
-  localStorage.setItem(STORAGE_VIEW, JSON.stringify({
-    center: [c.lng, c.lat],
-    zoom: map.getZoom()
-  }));
-});
-</script>
+// Persist view: sync both maps
+function saveView() {
+  const c = (currentStyle==='streets'?mapStreets:mapHybrid).getCenter();
+  const z = (currentStyle==='streets'?mapStreets:mapHybrid).getZoom();
+  localStorage.setItem(STORAGE_VIEW, JSON.stringify({center:[c.lng,c.lat], zoom:z}));
+}
 
+mapStreets.on('moveend', saveView);
+mapHybrid.on('moveend', saveView);
+</script>
 </body>
 </html>
