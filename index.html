@@ -21,20 +21,18 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; }
 #routingPanel select, #routingPanel button { font:14px 'Inter', sans-serif; padding:6px 10px; border-radius:6px; border:1px solid #ccc; }
 
 /* Hybrid & download buttons */
-#hybridToggle, #downloadMap {
-  position:absolute; bottom:60px; left:10px; z-index:25; width:48px; height:48px;
-  border-radius:6px; background:white; border:1px solid #ccc; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: background 0.2s;
-}
+#hybridToggle { position:absolute; bottom:60px; left:10px; z-index:25; width:48px; height:48px; border-radius:6px; background:white; border:1px solid #ccc; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: background 0.2s; }
 #hybridToggle.active { background:#ddd; }
-#hybridToggle img, #downloadMap svg { width:28px; height:28px; }
+#hybridToggle img { width:28px; height:28px; }
+#downloadMap { position:absolute; bottom:10px; right:10px; z-index:25; width:48px; height:48px; border-radius:6px; background:white; border:1px solid #ccc; display:flex; align-items:center; justify-content:center; cursor:pointer; }
 
 /* Zoom/compass */
-.maplibregl-ctrl-top-left { right:10px; left:auto !important; bottom:10px; top:auto !important; transform:scale(1.3); }
+.maplibregl-ctrl-top-left { right:10px; left:auto !important; bottom:70px; top:auto !important; transform:scale(1.3); }
 
 /* Route info & loading */
 #route-info { position:absolute; top:60px; left:50%; transform:translateX(-50%); background:white; padding:8px 14px; border-radius:6px; border:1px solid #333; font:14px 'Inter', sans-serif; opacity:0.9; pointer-events:none; display:none; z-index:25; }
 .loading { position:absolute; top:20px; left:50%; transform:translateX(-50%); background:yellow; padding:6px 12px; border-radius:4px; z-index:40; font-weight:bold; display:none; }
-.attribution-text { position:absolute; bottom:10px; right:10px; z-index:25; background:rgba(255,255,255,0.85); padding:6px 10px; font:12px 'Inter', sans-serif; border-radius:6px; }
+.attribution-text { position:absolute; bottom:10px; left:50px; z-index:25; background:rgba(255,255,255,0.85); padding:6px 10px; font:12px 'Inter', sans-serif; border-radius:6px; }
 .maptiler-logo { position:absolute; left:10px; bottom:10px; z-index:25; }
 </style>
 </head>
@@ -46,13 +44,6 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; }
 <div id="controls">
   <input id="searchBox" type="text" placeholder="Search"/>
   <div id="searchResults"></div>
-
-  <button id="downloadMap">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/>
-      <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/>
-    </svg>
-  </button>
 
   <div id="routingDropdown">
     <div id="routingButton">Routing Options ▼</div>
@@ -71,6 +62,13 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; }
   <img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg" alt="Hybrid Map Icon">
 </div>
 
+<button id="downloadMap">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/>
+    <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/>
+  </svg>
+</button>
+
 <div id="route-info"></div>
 <div id="loading">Loading...</div>
 
@@ -87,7 +85,7 @@ const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY
 
 let savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
-let routingEnabled = JSON.parse(localStorage.getItem('mapRouteEnabled') || 'false');
+let routingEnabled = false; 
 let routingMode = document.getElementById('mode').value;
 
 let routePoints = [];
@@ -136,6 +134,7 @@ mapStreets.on('moveend', saveView); mapHybrid.on('moveend', saveView);
 const routingButton = document.getElementById('routingButton');
 const routingPanel = document.getElementById('routingPanel');
 routingButton.onclick = ()=>{ routingPanel.style.display = routingPanel.style.display==='flex'?'none':'flex'; routingPanel.style.flexDirection='column'; };
+
 
 // --- Insert your previous working pin/search/routing/download JS here ---
 // copy full previous working JS (addPin, clearRoute, fetchRoute, Nominatim search, map click handlers, download) below this line
@@ -286,5 +285,6 @@ document.getElementById('downloadMap').onclick=()=>{
 </script>
 </body>
 </html>
+
 
 
