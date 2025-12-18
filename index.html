@@ -150,16 +150,16 @@ function updateSearchPlaceholder(){
   else searchBox.placeholder = "Select starting location";
 }
 
-// Add pin logic
 function addPin(map, lngLat, isSearch=false){
-    // Limit to max 2 pins
-    if(routePoints.length >= 2){
-        // Remove the first pin (start) if adding a new one
+    // If routing is enabled, limit to max 2 pins
+    if(routingEnabled && routePoints.length >= 2) {
+        // Remove the oldest pin (startMarker) to make room
         if(startMarker){
             startMarker.remove();
             markers = markers.filter(m => m !== startMarker);
             routePoints.shift();
-            startMarker = null;
+            startMarker = endMarker; // shift endMarker to startMarker
+            endMarker = null;
         }
     }
 
@@ -170,7 +170,7 @@ function addPin(map, lngLat, isSearch=false){
     if(routingEnabled && startMarker && !endMarker) svgContent = endPinSVG;
 
     const el = document.createElement('div');
-    el.style.width = '40px'; el.style.height = '40px'; 
+    el.style.width = '40px'; el.style.height = '40px';
     el.style.cursor = 'pointer';
     el.innerHTML = svgContent;
 
@@ -198,6 +198,21 @@ function addPin(map, lngLat, isSearch=false){
             if(mp.getSource('route')) mp.removeSource('route');
         });
     }
+
+    m.getElement().addEventListener('click', ()=>{ removePin(); });
+
+    if(isSearch){
+        if(!routingEnabled){
+            markers.forEach(mark=>mark.remove());
+            markers=[];
+        }
+        if(routingEnabled){
+            if(!startMarker){ startMarker=m; routePoints[0]=lngLat; updateSearchPlaceholder(); }
+            else if(!endMarker){ endMarker=m; routePoints[1]=lngLat; updateSearchPlaceholder(); fetchRoute(); }
+        } else { markers.push(m); }
+    } else { markers.push(m); }
+}
+
 
     m.getElement().addEventListener('click', ()=>{ removePin(); });
 
@@ -337,6 +352,7 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
 
 
 
