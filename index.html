@@ -60,7 +60,20 @@ button, select, input { font:14px 'Inter', sans-serif; }
   <img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg" alt="Hybrid Map Icon">
 </div>
 
-<div id="route-info" class="route-info" style="display:none;"></div>
+<div id="route-info" style="
+    position: absolute;
+    top: 130px; /* adjust to sit below your routing GUI */
+    right: 10px;
+    width: 220px; /* same width as controls */
+    background: rgba(255,255,255,0.85);
+    padding: 8px 10px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font: 14px 'Inter', sans-serif;
+    z-index: 25;
+    pointer-events: none;
+    display: none;
+"></div>
 <div id="loading" class="loading">Loading...</div>
 
 <div class="attribution-text">
@@ -281,3 +294,4 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
