@@ -79,6 +79,23 @@ const routeInfo = document.getElementById('route-info');
 const loadingEl = document.getElementById('loading');
 const searchBox = document.getElementById('searchBox');
 const searchResults = document.getElementById('searchResults');
+const mapStreets = new maplibregl.Map({
+  container: 'map-streets',
+  style: STREETS_URL,
+  center: savedView?.center || [0,0],
+  zoom: savedView?.zoom ?? 1,
+  preserveDrawingBuffer: true,   // <--- Add this line
+  attributionControl: false
+});
+
+const mapHybrid = new maplibregl.Map({
+  container: 'map-hybrid',
+  style: HYBRID_URL,
+  center: savedView?.center || [0,0],
+  zoom: savedView?.zoom ?? 1,
+  preserveDrawingBuffer: true,   // <--- Add this line
+  attributionControl: false
+});
 
 // SVG markers
 const defaultPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
@@ -263,63 +280,31 @@ searchBox.addEventListener('input', ()=>{
 document.addEventListener('click', e=> { if(!searchResults.contains(e.target) && e.target!==searchBox) searchResults.style.display='none'; });
 
 // Download map
-document.getElementById('downloadMap').onclick = async () => {
-  const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
+document.getElementById('downloadMap').onclick = () => {
+  const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
 
-  // Show loading while generating image
-  loadingEl.style.display = 'block';
-  await new Promise(r => setTimeout(r, 50)); // slight delay to ensure canvas is rendered
+  // temporarily hide UI controls for a clean image
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('hybridToggle').style.display = 'none';
 
-  // Get the map canvas
-  const mapCanvas = map.getCanvas();
+  setTimeout(() => {
+    const dataURL = activeMap.getCanvas().toDataURL('image/png');
 
-  // Create a new canvas
-  const exportCanvas = document.createElement('canvas');
-  exportCanvas.width = mapCanvas.width;
-  exportCanvas.height = mapCanvas.height;
-  const ctx = exportCanvas.getContext('2d');
+    // restore UI
+    document.getElementById('controls').style.display = 'flex';
+    document.getElementById('hybridToggle').style.display = 'flex';
 
-  // Draw the map itself
-  ctx.drawImage(mapCanvas, 0, 0);
-
-  // Draw pins and route layers
-  markers.forEach(m => {
-    const el = m.getElement();
-    const rect = map.getCanvas().getBoundingClientRect();
-    const pos = map.project(m.getLngLat());
-    // Draw SVG as image
-    const img = new Image();
-    const svg = new XMLSerializer().serializeToString(el.querySelector('svg'));
-    img.src = 'data:image/svg+xml;base64,' + btoa(svg);
-    ctx.drawImage(img, pos.x - 20, pos.y - 40, 40, 40);
-  });
-
-  // Draw route if exists
-  const routeLayer = map.getSource('route');
-  if (routeLayer) {
-    const routeGeoJSON = routeLayer._data; // get route GeoJSON
-    ctx.strokeStyle = '#0074d9';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    routeGeoJSON.coordinates.forEach((coord, i) => {
-      const px = map.project({lng: coord[0], lat: coord[1]}).x;
-      const py = map.project({lng: coord[0], lat: coord[1]}).y;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.stroke();
-  }
-
-  // Download the PNG
-  const link = document.createElement('a');
-  link.download = 'map.png';
-  link.href = exportCanvas.toDataURL('image/png');
-  link.click();
-  loadingEl.style.display = 'none';
+    // trigger download
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = routingEnabled ? 'map_with_route.png' : 'map.png';
+    link.click();
+  }, 50); // short delay to let UI hide
 };
 
 </script>
 </body>
 </html>
+
 
 
