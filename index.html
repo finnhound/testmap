@@ -208,26 +208,6 @@ function addPin(map, lngLat, isSearch=false) {
     } else { markers.push(m); }
 }
 
-
-    m.getElement().addEventListener('click', ()=>{ removePin(); });
-
-    if(isSearch){
-        if(!routingEnabled){
-            markers.forEach(mark=>mark.remove());
-            markers=[];
-        }
-        if(routingEnabled){
-            if(!startMarker){ startMarker=m; routePoints[0]=lngLat; updateSearchPlaceholder(); }
-            else if(!endMarker){ endMarker=m; routePoints[1]=lngLat; updateSearchPlaceholder(); fetchRoute(); }
-        } else { markers.push(m); }
-    } else { markers.push(m); }
-}
-
-
-    m.getElement().addEventListener('click', ()=>{ removePin(); });
-
-  
-
 // Clear route
 function clearRoute(){
   markers.forEach(m=>m.remove());
@@ -328,6 +308,7 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
 
 
 
