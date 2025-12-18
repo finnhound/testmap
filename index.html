@@ -8,6 +8,7 @@
 html, body { margin:0; height:100%; }
 .map { width:100%; height:100%; position:absolute; top:0; left:0; }
 #toggle { position:absolute; top:10px; right:10px; z-index:20; padding:6px 10px; background:white; border:1px solid #ccc; cursor:pointer; font:14px sans-serif; }
+#mode { position:absolute; top:50px; right:10px; z-index:20; padding:6px; background:white; border:1px solid #ccc; font:14px sans-serif; }
 .maptiler-logo { position:absolute; left:10px; bottom:10px; z-index:20; }
 </style>
 </head>
@@ -15,7 +16,15 @@ html, body { margin:0; height:100%; }
 
 <div id="map-streets" class="map"></div>
 <div id="map-hybrid" class="map" style="display:none;"></div>
+
 <button id="toggle">Hybrid</button>
+
+<select id="mode">
+  <option value="driving">Driving</option>
+  <option value="walking">Walking</option>
+  <option value="cycling">Cycling</option>
+</select>
+
 <a class="maptiler-logo" href="https://www.maptiler.com" target="_blank" rel="noopener">
   <img src="https://api.maptiler.com/resources/logo.svg" alt="MapTiler logo">
 </a>
@@ -30,121 +39,104 @@ const STORAGE_STYLE = 'mapStyle';
 
 const savedView = JSON.parse(localStorage.getItem(STORAGE_VIEW) || 'null');
 let currentStyle = localStorage.getItem(STORAGE_STYLE) || 'streets';
+let routingMode = document.getElementById('mode').value;
+
+let routePoints = [];
+let markers = [];
 
 // --- Initialize Maps ---
-const mapStreets = new maplibregl.Map({
-  container: 'map-streets',
-  style: STREETS_URL,
-  center: savedView?.center || [0,0],
-  zoom: savedView?.zoom ?? 1,
-  attributionControl:false
-});
-const mapHybrid = new maplibregl.Map({
-  container: 'map-hybrid',
-  style: HYBRID_URL,
-  center: savedView?.center || [0,0],
-  zoom: savedView?.zoom ?? 1,
-  attributionControl:false
-});
+const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center:savedView?.center||[0,0], zoom:savedView?.zoom??1, attributionControl:false });
+const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center:savedView?.center||[0,0], zoom:savedView?.zoom??1, attributionControl:false });
 
 // --- Controls ---
-[mapStreets, mapHybrid].forEach(map => {
-  map.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}), 'top-left');
-  map.addControl(new maplibregl.AttributionControl({compact:false}), 'bottom-right');
+[mapStreets, mapHybrid].forEach(map=>{
+  map.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left');
+  map.addControl(new maplibregl.AttributionControl({compact:false}),'bottom-right');
 });
 
-// --- Toggle Maps ---
+// --- Map Toggle ---
 const toggle = document.getElementById('toggle');
-function showMap(style) {
+function showMap(style){
   if(style==='streets'){
     document.getElementById('map-streets').style.display='block';
     document.getElementById('map-hybrid').style.display='none';
-    toggle.textContent = 'Hybrid';
-  } else {
+    toggle.textContent='Hybrid';
+  }else{
     document.getElementById('map-streets').style.display='none';
     document.getElementById('map-hybrid').style.display='block';
-    toggle.textContent = 'Streets';
+    toggle.textContent='Streets';
   }
   currentStyle = style;
   localStorage.setItem(STORAGE_STYLE,currentStyle);
 }
 showMap(currentStyle);
-toggle.onclick = () => { showMap(currentStyle==='streets'?'hybrid':'streets'); };
+toggle.onclick = ()=>showMap(currentStyle==='streets'?'hybrid':'streets');
 
 // --- Sync Views ---
-let syncing = false;
-function syncView(sourceMap, targetMap){
+let syncing=false;
+function syncView(sourceMap,targetMap){
   if(syncing) return;
-  syncing = true;
-  const c = sourceMap.getCenter();
-  const z = sourceMap.getZoom();
+  syncing=true;
+  const c=sourceMap.getCenter();
+  const z=sourceMap.getZoom();
   targetMap.jumpTo({center:[c.lng,c.lat], zoom:z});
-  syncing = false;
+  syncing=false;
 }
-mapStreets.on('move', ()=>syncView(mapStreets, mapHybrid));
-mapHybrid.on('move', ()=>syncView(mapHybrid, mapStreets));
+mapStreets.on('move',()=>syncView(mapStreets,mapHybrid));
+mapHybrid.on('move',()=>syncView(mapHybrid,mapStreets));
 
-// --- Persist view ---
-function saveView() {
+// --- Save View ---
+function saveView(){
   const activeMap = currentStyle==='streets'?mapStreets:mapHybrid;
-  const c = activeMap.getCenter();
-  const z = activeMap.getZoom();
-  localStorage.setItem(STORAGE_VIEW, JSON.stringify({center:[c.lng,c.lat], zoom:z}));
+  const c=activeMap.getCenter();
+  const z=activeMap.getZoom();
+  localStorage.setItem(STORAGE_VIEW,JSON.stringify({center:[c.lng,c.lat], zoom:z}));
 }
 mapStreets.on('moveend', saveView);
 mapHybrid.on('moveend', saveView);
 
-// --- Routing Logic ---
-let routePoints = [];
-let markers = [];
+// --- Routing ---
+const modeSelect = document.getElementById('mode');
+modeSelect.onchange = ()=>routingMode = modeSelect.value;
 
-function addMarker(map, lngLat){
+function addMarker(map,lngLat){
   const marker = new maplibregl.Marker().setLngLat(lngLat).addTo(map);
   markers.push(marker);
 }
-
 function clearRoute(){
   markers.forEach(m=>m.remove());
   markers=[];
-  [mapStreets, mapHybrid].forEach(m=>{
+  [mapStreets,mapHybrid].forEach(m=>{
     if(m.getLayer('route')) { m.removeLayer('route'); }
     if(m.getSource('route')) { m.removeSource('route'); }
   });
-  routePoints = [];
+  routePoints=[];
 }
 
-// Click handler
+function fetchRoute(){
+  const url = `https://api.maptiler.com/directions?key=${KEY}&points=${routePoints[0][0]},${routePoints[0][1]};${routePoints[1][0]},${routePoints[1][1]}&mode=${routingMode}`;
+  fetch(url).then(res=>res.json()).then(data=>{
+    if(!data.routes || !data.routes[0]) return;
+    const routeGeoJSON = { type:'Feature', geometry:data.routes[0].geometry };
+    [mapStreets,mapHybrid].forEach(m=>{
+      if(m.getSource('route')) m.removeLayer('route') && m.removeSource('route');
+      m.addSource('route',{type:'geojson', data:routeGeoJSON});
+      m.addLayer({id:'route', type:'line', source:'route', layout:{'line-cap':'round','line-join':'round'}, paint:{'line-color':'#ff0000','line-width':5}});
+    });
+  });
+}
+
+// --- Map Click Handler ---
 function onMapClick(e){
   const map = currentStyle==='streets'?mapStreets:mapHybrid;
   if(routePoints.length===2) clearRoute();
-  const lngLat = [e.lngLat.lng, e.lngLat.lat];
+  const lngLat = [e.lngLat.lng,e.lngLat.lat];
   routePoints.push(lngLat);
-  addMarker(map, lngLat);
-
-  if(routePoints.length===2){
-    // Fetch route from MapTiler Directions
-    const url = `https://api.maptiler.com/directions?key=${KEY}&points=${routePoints[0][0]},${routePoints[0][1]};${routePoints[1][0]},${routePoints[1][1]}&mode=driving`;
-    fetch(url).then(res=>res.json()).then(data=>{
-      const routeGeoJSON = { type:'Feature', geometry: data.routes[0].geometry };
-      [mapStreets, mapHybrid].forEach(m=>{
-        if(m.getSource('route')) m.removeLayer('route') && m.removeSource('route');
-        m.addSource('route', { type:'geojson', data: routeGeoJSON });
-        m.addLayer({
-          id:'route',
-          type:'line',
-          source:'route',
-          layout:{'line-cap':'round','line-join':'round'},
-          paint:{'line-color':'#ff0000','line-width':5}
-        });
-      });
-    });
-  }
+  addMarker(map,lngLat);
+  if(routePoints.length===2) fetchRoute();
 }
+[mapStreets,mapHybrid].forEach(m=>m.on('click', onMapClick));
 
-// Add click event
-[mapStreets, mapHybrid].forEach(m=>{
-  m.on('click', onMapClick);
-});
 </script>
 </body>
 </html>
