@@ -164,6 +164,8 @@ function addPin(map, lngLat, isSearch=false) {
             routePoints.shift();  // remove old start coords
             startMarker = null;   // reset
             svgContent = startPinSVG; // new pin is start
+            cycleSearchPin();
+            redrawOtherPin();
         }
     }
 
@@ -212,6 +214,32 @@ function addPin(map, lngLat, isSearch=false) {
         } else { markers.push(m); }
     } else { markers.push(m); }
 }
+
+  // Call this function after any pin is added via search or map click
+function cycleSearchPin() {
+  if (!routingEnabled) return;
+
+  if (!startMarker) {
+    searchBox.placeholder = "Select starting location";
+  } else if (!endMarker) {
+    searchBox.placeholder = "Select ending location";
+  } else {
+    // Both pins exist; after overriding, cycle back to starting pin
+    searchBox.placeholder = "Select starting location";
+  }
+}
+
+
+// Call this whenever a pin is overwritten
+function redrawOtherPin() {
+  if (startMarker && !markers.includes(startMarker)) {
+    startMarker.addTo(currentStyle === 'streets' ? mapStreets : mapHybrid);
+  }
+  if (endMarker && !markers.includes(endMarker)) {
+    endMarker.addTo(currentStyle === 'streets' ? mapStreets : mapHybrid);
+  }
+}
+
 
 
 // Clear route
@@ -324,6 +352,7 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
 
 
 
