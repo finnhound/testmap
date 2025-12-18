@@ -222,33 +222,6 @@ function addPin(map, lngLat, isSearch = false) {
 }
 
 
-    function removePin() {
-        m.remove();
-        markers = markers.filter(x => x !== m);
-        if (startMarker === m) { startMarker = null; routePoints.shift(); updateSearchPlaceholder(); }
-        if (endMarker === m) { endMarker = null; routePoints.pop(); updateSearchPlaceholder(); }
-        routeInfo.style.display = 'none';
-        [mapStreets, mapHybrid].forEach(mp => {
-            if (mp.getLayer('route')) mp.removeLayer('route');
-            if (mp.getSource('route')) mp.removeSource('route');
-        });
-    }
-
-    m.getElement().addEventListener('click', () => { removePin(); });
-
-    if (isSearch) {
-        if (!routingEnabled) {
-            markers.forEach(mark => mark.remove());
-            markers = [];
-        }
-        if (routingEnabled) {
-            if (!startMarker) { startMarker = m; routePoints[0] = lngLat; updateSearchPlaceholder(); }
-            else if (!endMarker) { endMarker = m; routePoints[1] = lngLat; updateSearchPlaceholder(); fetchRoute(); }
-            else { startMarker = m; routePoints.unshift(lngLat); updateSearchPlaceholder(); fetchRoute(); } // override handled
-        } else { markers.push(m); }
-    } else { markers.push(m); }
-}
-
   // Call this function after any pin is added via search or map click
 function cycleSearchPin() {
   if (!routingEnabled) return;
@@ -386,6 +359,7 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
 
 
 
