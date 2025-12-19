@@ -36,9 +36,9 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
     #map-streets, #map-hybrid { width: 55.56%; height: 55.56%; transform: scale(1.8); transform-origin: top left; }
     
     #controls { 
-        width: 200px; /* Wider for touch */
+        width: 200px; 
         padding: 18px; 
-        transform: scale(1.5); /* Significant Scale Increase */
+        transform: scale(1.5); 
         transform-origin: top right; 
         top: 15px; 
         right: 15px; 
@@ -51,11 +51,25 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
     #gpsToggle { top: 560px; right: 20px; transform: scale(1.7); }
     #hybridToggle { top: 640px; right: 20px; transform: scale(1.7); }
     
-    .maplibregl-ctrl-group { transform: scale(1.7); transform-origin: top left; margin: 25px !important; }
+    /* RESTORE ICONS FOR +/- BUTTONS */
+    .maplibregl-ctrl-group { transform: scale(1.7); transform-origin: top left; margin: 25px !important; background: white !important; }
+    .maplibregl-ctrl-icon { display: block !important; width: 100% !important; height: 100% !important; background-size: 60% !important; }
     
-    .attribution-text { bottom: 15px; left: 50%; right: auto; transform: translateX(-50%) scale(1.1); width: 85%; text-align: center; }
-    .maptiler-logo { bottom: 80px; left: 20px; transform: scale(1.4); }
-    #route-info { top: 150px; left: 50%; transform: translateX(-50%) scale(1.15); width: auto; min-width: 260px; max-width: 90%; text-align: center; }
+    /* LARGER ATTRIBUTION */
+    .attribution-text { bottom: 20px; left: 50%; right: auto; transform: translateX(-50%) scale(1.3); width: 75%; text-align: center; padding: 10px; font-size: 11px; }
+    .maptiler-logo { bottom: 100px; left: 25px; transform: scale(1.6); }
+
+    /* MOVE ROUTE INFO TOP-LEFT & SCALE UP */
+    #route-info { 
+        top: 20px; 
+        left: 20px; 
+        transform: scale(1.3); 
+        transform-origin: top left;
+        width: auto; 
+        max-width: 60%;
+        white-space: normal;
+        padding: 15px;
+    }
 }
 </style>
 </head>
@@ -112,6 +126,7 @@ const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
 let routingEnabled = JSON.parse(localStorage.getItem('mapRouteEnabled') || 'false');
 let watchId = null;
+let currentCoords = null;
 
 let routePoints = [];
 let startMarker = null, endMarker = null, waypointMarkers = [];
@@ -121,7 +136,6 @@ const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_U
 const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 [mapStreets,mapHybrid].forEach(m=>{ m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left'); });
 
-// --- GPS Arrow SVG (Sized to match pins) ---
 const arrowSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#007aff" stroke="white" stroke-width="3"/><path d="M20 5L27 18H13L20 5Z" fill="#007aff" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>`;
 
 function showHybrid(isHybrid) {
@@ -148,14 +162,20 @@ function syncView(src, tgt) {
 mapStreets.on('move', () => syncView(mapStreets, mapHybrid));
 mapHybrid.on('move', () => syncView(mapHybrid, mapStreets));
 
-// --- GPS TRACKING & BOTTOM-CENTER LOCK ---
+// --- GPS TRACKING & ORBITAL LOCK ---
 async function handleOrientation(event) {
     let heading = event.webkitCompassHeading || (360 - event.alpha);
     if (!heading) return;
     if (userMarkerStreets) userMarkerStreets.setRotation(heading);
     if (userMarkerHybrid) userMarkerHybrid.setRotation(heading);
-    if (watchId !== null) {
-        (currentStyle === 'streets' ? mapStreets : mapHybrid).setBearing(heading);
+    
+    if (watchId !== null && currentCoords) {
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        // JUMP TO CENTER + SET BEARING = ORBITAL LOCK
+        activeMap.jumpTo({
+            center: currentCoords,
+            bearing: heading
+        });
     }
 }
 
@@ -164,6 +184,7 @@ document.getElementById('gpsToggle').onclick = async () => {
         navigator.geolocation.clearWatch(watchId);
         window.removeEventListener('deviceorientation', handleOrientation);
         watchId = null;
+        currentCoords = null;
         document.getElementById('gpsToggle').classList.remove('active');
         if (userMarkerStreets) { userMarkerStreets.remove(); userMarkerHybrid.remove(); }
         userMarkerStreets = userMarkerHybrid = null;
@@ -176,20 +197,21 @@ document.getElementById('gpsToggle').onclick = async () => {
         document.getElementById('gpsToggle').classList.add('active');
         window.addEventListener('deviceorientation', handleOrientation, true);
         watchId = navigator.geolocation.watchPosition(pos => {
-            const coords = [pos.coords.longitude, pos.coords.latitude];
+            currentCoords = [pos.coords.longitude, pos.coords.latitude];
             const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
             
             if (!userMarkerStreets) {
                 const el1 = document.createElement('div'); el1.innerHTML = arrowSVG;
                 const el2 = document.createElement('div'); el2.innerHTML = arrowSVG;
-                userMarkerStreets = new maplibregl.Marker({element: el1, rotationAlignment: 'map'}).setLngLat(coords).addTo(mapStreets);
-                userMarkerHybrid = new maplibregl.Marker({element: el2, rotationAlignment: 'map'}).setLngLat(coords).addTo(mapHybrid);
+                userMarkerStreets = new maplibregl.Marker({element: el1, rotationAlignment: 'map'}).setLngLat(currentCoords).addTo(mapStreets);
+                userMarkerHybrid = new maplibregl.Marker({element: el2, rotationAlignment: 'map'}).setLngLat(currentCoords).addTo(mapHybrid);
+                activeMap.flyTo({center: currentCoords, zoom: 17});
             } else {
-                userMarkerStreets.setLngLat(coords); userMarkerHybrid.setLngLat(coords);
+                userMarkerStreets.setLngLat(currentCoords); userMarkerHybrid.setLngLat(currentCoords);
             }
             
-            // LOCK TO BOTTOM CENTER: Pan so user is at bottom 25% of screen
-            activeMap.panTo(coords, { offset: [0, window.innerHeight * 0.25] });
+            // Keep location in absolute center for orbital rotation
+            activeMap.jumpTo({ center: currentCoords });
             
         }, null, { enableHighAccuracy: true });
     }
@@ -259,7 +281,6 @@ function addPin(lngLat, isSearch = false) {
     updateSearchPlaceholder();
 }
 
-// --- WAYPOINT SYSTEM ---
 function addWaypoint(lngLat) {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
@@ -292,7 +313,6 @@ function addWaypoint(lngLat) {
     addPin([e.lngLat.lng, e.lngLat.lat]);
 }));
 
-// --- SEARCH ENGINE ---
 document.getElementById('searchBox').addEventListener('input', (e) => {
     const q = e.target.value;
     if(!q) { document.getElementById('searchResults').style.display = 'none'; return; }
@@ -313,14 +333,12 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
         });
 });
 
-// --- DOWNLOAD WITH ATTRIBUTION OVERLAY ---
 document.getElementById('downloadMap').onclick = () => {
     const mapCanvas = (currentStyle === 'streets' ? mapStreets : mapHybrid).getCanvas();
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = mapCanvas.width; tempCanvas.height = mapCanvas.height;
     const ctx = tempCanvas.getContext('2d');
     ctx.drawImage(mapCanvas, 0, 0);
-    
     const attr = "© MapLibre | © ORS | © OpenStreetMap | © MapTiler";
     ctx.font = "14px Inter, sans-serif";
     const textWidth = ctx.measureText(attr).width;
@@ -328,7 +346,6 @@ document.getElementById('downloadMap').onclick = () => {
     ctx.fillRect(tempCanvas.width - textWidth - 20, tempCanvas.height - 35, textWidth + 20, 35);
     ctx.fillStyle = "#333";
     ctx.fillText(attr, tempCanvas.width - textWidth - 10, tempCanvas.height - 12);
-    
     const a = document.createElement('a'); a.href = tempCanvas.toDataURL(); a.download = `map-${Date.now()}.png`; a.click();
 };
 
