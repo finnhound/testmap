@@ -11,8 +11,8 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 
 #controls { position:absolute; top:10px; right:10px; z-index:25; background:white; padding:10px; border:1px solid #ccc; display:flex; flex-direction:column; gap:5px; border-radius:6px; }
 
-/* GPS and Toggle Buttons */
-#downloadMap, #hybridToggle, #gpsToggle { 
+/* Icon Buttons Positioning */
+#downloadMap, #gpsToggle, #hybridToggle { 
   position:absolute; right:10px; z-index:20; background:white; 
   padding:8px; border:1px solid #ccc; cursor:pointer; border-radius:6px; 
   width:40px; height:40px; display:flex; align-items:center; justify-content:center; 
@@ -25,15 +25,11 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 #hybridToggle.active, #gpsToggle.active { background:#ddd; }
 #hybridToggle img, #gpsToggle svg { width:24px; height:24px; }
 
-/* User Location Marker - Directional */
+/* User Location Marker - Directional Arrow */
 .user-location-marker {
   width: 30px; height: 30px;
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.1s linear;
-}
-
-.user-location-marker svg {
-  filter: drop-shadow(0 0 5px rgba(0,0,0,0.3));
 }
 
 button, select, input { font:14px 'Inter', sans-serif; }
@@ -62,6 +58,7 @@ button, select, input { font:14px 'Inter', sans-serif; }
 .maptiler-logo { position:absolute; left:10px; bottom:10px; z-index:25; }
 .hint-text { position:absolute; top:290px; right:10px; z-index:20; background:rgba(255,255,255,0.95); padding:8px 12px; border:1px solid #ccc; border-radius:6px; font:12px 'Inter', sans-serif; max-width:200px; display:none; }
 
+/* Mobile Portrait Styling */
 @media screen and (orientation: portrait) {
     #map-streets, #map-hybrid { width: 55.56%; height: 55.56%; transform: scale(1.8); transform-origin: top left; }
     #controls { width: 170px; padding: 14px; transform: scale(1.35); transform-origin: top right; top: 15px; right: 15px; }
@@ -97,114 +94,232 @@ button, select, input { font:14px 'Inter', sans-serif; }
   <svg viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>
 </div>
 
-<div id="gpsToggle" title="Toggle GPS">
+<div id="gpsToggle" title="Toggle GPS Orientation">
   <svg viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
 </div>
 
 <div id="hybridToggle"><img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg" alt="Hybrid Map Icon"></div>
+
 <div id="route-info" class="route-info"></div>
 <div id="hint-text" class="hint-text"><strong>Click on route</strong> to add waypoints<br><strong>Double-click</strong> waypoints to remove</div>
+<div id="loading" class="loading">Loading...</div>
+
+<div class="attribution-text">
+    <a href="https://maplibre.org/" target="_blank">MapLibre</a> | <a href="https://openrouteservice.org/" target="_blank">ORS</a> | © <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a> | © <a href="https://www.maptiler.com/" target="_blank">MapTiler</a>
+</div>
 
 <script>
+const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjFjMzkyNDVlOGIyNjQxYjVhMDRhNWEwNjdlMTM4MDc0IiwiaCI6Im11cm11cjY0In0=";
 const MT_KEY = 'kUOJqqeRX1BMaXctsgK5';
 const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
 const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
 
 const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
+let routingEnabled = JSON.parse(localStorage.getItem('mapRouteEnabled') || 'false');
+let routingMode = 'driving-car';
 let watchId = null;
 let currentHeading = 0;
 
-const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false });
-const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false });
+let routePoints = [];
+let startMarker = null, endMarker = null, waypointMarkers = [];
+let userMarkerStreets = null, userMarkerHybrid = null;
+
+const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
+const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 [mapStreets,mapHybrid].forEach(m=>{ m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left'); });
 
-const hybridToggleEl = document.getElementById('hybridToggle');
-function showHybrid(isHybrid) {
-  hybridToggleEl.classList.toggle('active', isHybrid);
-  document.getElementById('map-streets').style.display = isHybrid ? 'none' : 'block';
-  document.getElementById('map-hybrid').style.display = isHybrid ? 'block' : 'none';
-  const activeMap = isHybrid ? mapHybrid : mapStreets;
-  activeMap.resize();
-  currentStyle = isHybrid ? 'hybrid' : 'streets';
-  localStorage.setItem('mapStyle', currentStyle);
-}
-showHybrid(currentStyle==='hybrid');
-hybridToggleEl.onclick = ()=>showHybrid(currentStyle==='streets');
-
-// Directional Marker SVG
+const pinSize = (window.innerHeight > window.innerWidth) ? 48 : 40;
 const arrowSVG = `<svg width="100%" height="100%" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#007aff" stroke="white" stroke-width="3"/><path d="M20 2L26 14H14L20 2Z" fill="#007aff" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>`;
 
-let markerStreets = null, markerHybrid = null;
+// --- CORE UTILITIES ---
+function showHybrid(isHybrid) {
+    currentStyle = isHybrid ? 'hybrid' : 'streets';
+    document.getElementById('map-streets').style.display = isHybrid ? 'none' : 'block';
+    document.getElementById('map-hybrid').style.display = isHybrid ? 'block' : 'none';
+    document.getElementById('hybridToggle').classList.toggle('active', isHybrid);
+    const activeMap = isHybrid ? mapHybrid : mapStreets;
+    activeMap.resize();
+    localStorage.setItem('mapStyle', currentStyle);
+}
+showHybrid(currentStyle === 'hybrid');
 
+let syncing = false;
+function syncView(src, tgt) {
+    if (syncing) return;
+    syncing = true;
+    tgt.jumpTo({ center: src.getCenter(), zoom: src.getZoom(), bearing: src.getBearing() });
+    syncing = false;
+}
+mapStreets.on('move', () => syncView(mapStreets, mapHybrid));
+mapHybrid.on('move', () => syncView(mapHybrid, mapStreets));
+
+// --- ROUTING LOGIC ---
+const updateSearchPlaceholder = () => {
+    const sb = document.getElementById('searchBox');
+    if (!routingEnabled) sb.placeholder = "Search";
+    else if (!startMarker) sb.placeholder = "Select start";
+    else if (!endMarker) sb.placeholder = "Select end";
+    else sb.placeholder = "Search";
+};
+
+function clearRoute() {
+    waypointMarkers.forEach(wp => wp.remove()); waypointMarkers = [];
+    if (startMarker) { startMarker.remove(); startMarker = null; }
+    if (endMarker) { endMarker.remove(); endMarker = null; }
+    routePoints = [];
+    document.getElementById('route-info').style.display = 'none';
+    document.getElementById('hint-text').style.display = 'none';
+    [mapStreets, mapHybrid].forEach(m => {
+        if (m.getLayer('route')) m.removeLayer('route');
+        if (m.getSource('route')) m.removeSource('route');
+    });
+    updateSearchPlaceholder();
+}
+
+function fetchRoute() {
+    if (routePoints.length < 2) return;
+    fetch(`https://api.openrouteservice.org/v2/directions/${routingMode}/geojson`, {
+        method: 'POST', headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ coordinates: routePoints })
+    }).then(res => res.json()).then(data => {
+        if (!data.features?.[0]) return;
+        const feat = data.features[0];
+        document.getElementById('route-info').innerHTML = `Distance: ${(feat.properties.summary.distance / 1000).toFixed(2)} km | Time: ${Math.round(feat.properties.summary.duration / 60)} min`;
+        document.getElementById('route-info').style.display = 'block';
+        document.getElementById('hint-text').style.display = 'block';
+        [mapStreets, mapHybrid].forEach(m => {
+            if (m.getSource('route')) { m.removeLayer('route'); m.removeSource('route'); }
+            m.addSource('route', { type: 'geojson', data: feat.geometry });
+            m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': 6 } });
+        });
+    });
+}
+
+// --- GPS & ORIENTATION ---
 function handleOrientation(event) {
-    // Check for webkit (iOS) or absolute alpha
     let heading = event.webkitCompassHeading || (360 - event.alpha);
     if (!heading) return;
-    
-    currentHeading = heading;
-    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-    const targetMarker = currentStyle === 'streets' ? markerStreets : markerHybrid;
-
-    if (targetMarker) {
-        targetMarker.getElement().style.transform = `rotate(${heading}deg)`;
-    }
-    
+    if (userMarkerStreets) userMarkerStreets.getElement().style.transform = `rotate(${heading}deg)`;
+    if (userMarkerHybrid) userMarkerHybrid.getElement().style.transform = `rotate(${heading}deg)`;
     if (watchId !== null) {
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         activeMap.setBearing(heading);
     }
 }
 
-const gpsToggleEl = document.getElementById('gpsToggle');
-gpsToggleEl.onclick = async () => {
-  if (watchId !== null) {
-    // DISABLE GPS
-    navigator.geolocation.clearWatch(watchId);
-    window.removeEventListener('deviceorientation', handleOrientation);
-    watchId = null;
-    gpsToggleEl.classList.remove('active');
-    if(markerStreets) markerStreets.remove();
-    if(markerHybrid) markerHybrid.remove();
-    markerStreets = markerHybrid = null;
-    // RESET TO NORTH
-    mapStreets.setBearing(0);
-    mapHybrid.setBearing(0);
-  } else {
-    // ENABLE GPS
-    // iOS Permission Request
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        const response = await DeviceOrientationEvent.requestPermission();
-        if (response !== 'granted') return alert("Permission denied");
-    }
-
-    gpsToggleEl.classList.add('active');
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    
-    watchId = navigator.geolocation.watchPosition((pos) => {
-        const coords = [pos.coords.longitude, pos.coords.latitude];
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-        
-        if (!markerStreets) {
-            const el1 = document.createElement('div'); el1.className = 'user-location-marker'; el1.innerHTML = arrowSVG;
-            const el2 = document.createElement('div'); el2.className = 'user-location-marker'; el2.innerHTML = arrowSVG;
-            markerStreets = new maplibregl.Marker({element: el1}).setLngLat(coords).addTo(mapStreets);
-            markerHybrid = new maplibregl.Marker({element: el2}).setLngLat(coords).addTo(mapHybrid);
-            activeMap.flyTo({center: coords, zoom: 16});
-        } else {
-            markerStreets.setLngLat(coords);
-            markerHybrid.setLngLat(coords);
-            activeMap.easeTo({center: coords});
+document.getElementById('gpsToggle').onclick = async () => {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        window.removeEventListener('deviceorientation', handleOrientation);
+        watchId = null;
+        document.getElementById('gpsToggle').classList.remove('active');
+        if (userMarkerStreets) { userMarkerStreets.remove(); userMarkerHybrid.remove(); }
+        userMarkerStreets = userMarkerHybrid = null;
+        mapStreets.setBearing(0); mapHybrid.setBearing(0);
+    } else {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const res = await DeviceOrientationEvent.requestPermission();
+            if (res !== 'granted') return;
         }
-    }, (err) => alert(err.message), { enableHighAccuracy: true });
-  }
+        document.getElementById('gpsToggle').classList.add('active');
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        watchId = navigator.geolocation.watchPosition(pos => {
+            const coords = [pos.coords.longitude, pos.coords.latitude];
+            if (!userMarkerStreets) {
+                const el1 = document.createElement('div'); el1.className = 'user-location-marker'; el1.innerHTML = arrowSVG;
+                const el2 = document.createElement('div'); el2.className = 'user-location-marker'; el2.innerHTML = arrowSVG;
+                userMarkerStreets = new maplibregl.Marker({ element: el1 }).setLngLat(coords).addTo(mapStreets);
+                userMarkerHybrid = new maplibregl.Marker({ element: el2 }).setLngLat(coords).addTo(mapHybrid);
+                (currentStyle === 'streets' ? mapStreets : mapHybrid).flyTo({ center: coords, zoom: 16 });
+            } else {
+                userMarkerStreets.setLngLat(coords); userMarkerHybrid.setLngLat(coords);
+            }
+        }, err => console.error(err), { enableHighAccuracy: true });
+    }
 };
 
-// Sync and basic map listeners
-let syncing=false;
-function syncView(src,tgt){ if(syncing) return; syncing=true; const c=src.getCenter(), z=src.getZoom(), b=src.getBearing(); tgt.jumpTo({center:[c.lng,c.lat], zoom:z, bearing:b}); syncing=false; }
-mapStreets.on('move',()=>syncView(mapStreets,mapHybrid));
-mapHybrid.on('move',()=>syncView(mapHybrid,mapStreets));
-mapStreets.on('moveend', () => { const c=mapStreets.getCenter(); localStorage.setItem('mapView',JSON.stringify({center:[c.lng,c.lat], zoom:mapStreets.getZoom()})); });
+// --- PIN & SEARCH LOGIC ---
+function addPin(lngLat, isSearch = false) {
+    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+    let target = 'start';
+    if (startMarker) target = 'end';
+    
+    const el = document.createElement('div');
+    el.style.width = pinSize + 'px'; el.style.height = pinSize + 'px';
+    el.innerHTML = target === 'start' ? 
+        `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 24 24" fill="none" stroke="#00c7be" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>` :
+        `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
+    
+    const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(activeMap);
+    
+    if (target === 'start') {
+        startMarker = m; routePoints[0] = lngLat;
+    } else {
+        if (endMarker) endMarker.remove();
+        endMarker = m; routePoints[routePoints.length > 1 ? routePoints.length - 1 : 1] = lngLat;
+    }
+    
+    m.on('dragend', () => {
+        const pos = [m.getLngLat().lng, m.getLngLat().lat];
+        if (m === startMarker) routePoints[0] = pos; else routePoints[routePoints.length - 1] = pos;
+        fetchRoute();
+    });
+
+    if (startMarker && endMarker) fetchRoute();
+    updateSearchPlaceholder();
+}
+
+[mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
+    if (!routingEnabled) return;
+    addPin([e.lngLat.lng, e.lngLat.lat]);
+}));
+
+// --- SEARCH ENGINE ---
+let debounce;
+document.getElementById('searchBox').oninput = (e) => {
+    clearTimeout(debounce);
+    const q = e.target.value;
+    if (!q) { document.getElementById('searchResults').style.display = 'none'; return; }
+    debounce = setTimeout(() => {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+            .then(r => r.json()).then(data => {
+                const res = document.getElementById('searchResults');
+                res.innerHTML = '';
+                data.slice(0, 5).forEach(item => {
+                    const d = document.createElement('div'); d.className = 'searchItem'; d.textContent = item.display_name;
+                    d.onclick = () => {
+                        const loc = [parseFloat(item.lon), parseFloat(item.lat)];
+                        (currentStyle === 'streets' ? mapStreets : mapHybrid).flyTo({ center: loc, zoom: 14 });
+                        if (routingEnabled) addPin(loc, true);
+                        res.style.display = 'none'; e.target.value = '';
+                    };
+                    res.appendChild(d);
+                });
+                res.style.display = 'block';
+            });
+    }, 300);
+};
+
+// --- INITIALIZATION & BUTTONS ---
+document.getElementById('toggleRoute').onclick = function() {
+    routingEnabled = !routingEnabled;
+    this.textContent = routingEnabled ? 'Disable Routing' : 'Enable Routing';
+    if (!routingEnabled) clearRoute();
+    updateSearchPlaceholder();
+};
+
+document.getElementById('resetRoute').onclick = clearRoute;
+document.getElementById('mode').onchange = function() { routingMode = this.value; fetchRoute(); };
+document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle === 'streets');
+
+document.getElementById('downloadMap').onclick = () => {
+    const canvas = (currentStyle === 'streets' ? mapStreets : mapHybrid).getCanvas();
+    const link = document.createElement('a');
+    link.download = `map-${Date.now()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+};
 </script>
 </body>
 </html>
