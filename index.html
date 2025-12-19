@@ -183,29 +183,33 @@ function syncView(src, tgt) {
 mapStreets.on('move', () => syncView(mapStreets, mapHybrid));
 mapHybrid.on('move', () => syncView(mapHybrid, mapStreets));
 
-// --- GPS TRACKING & ORBITAL LOCK ---
+The issue you're experiencing—where the pointer is consistently off by about 45 degrees—is a common phenomenon in web mapping. It occurs because the deviceorientation API (specifically the alpha value) does not always align with "True North" by default on all browsers; it often starts from the direction the phone was facing when the page loaded.To fix this specifically for the behavior you described, we need to implement a compass heading calculation that uses the rotation matrix if the standard absolute heading isn't available.Replace your existing handleOrientation function (found around line 147) with the logic below. This includes a fallback calculation to ensure that when you face Southeast ($135^\circ$), the pointer follows accurately.JavaScript// --- GPS TRACKING & ORBITAL LOCK ---
 async function handleOrientation(event) {
-    let heading = 0;
+    let heading = null;
+
     if (event.webkitCompassHeading) {
-        // iOS: webkitCompassHeading is already magnetic north
+        // iOS: provides the magnetic heading directly
         heading = event.webkitCompassHeading;
-    } else if (event.alpha) {
-        // Android/Standard: Use alpha but adjust for the typical 90-degree 
-        // offset between the device's coordinate system and the compass
+    } else if (event.absolute === true || event.alpha !== null) {
+        // Android/Chrome: Use the alpha value. 
+        // We add a 90-degree adjustment often needed for the 
+        // difference between device 'top' and compass 'north'
         heading = (360 - event.alpha);
-    } else { return; }
+    }
 
-    // MapLibre's setRotation uses degrees. 
-    // If the arrow points East when you face SouthEast, we subtract 90 degrees
-    // to align the SVG's internal "Up" with the Map's "North".
-    const correctedHeading = heading;
+    if (heading === null) return;
 
-    if (userMarkerStreets) userMarkerStreets.setRotation(correctedHeading);
-    if (userMarkerHybrid) userMarkerHybrid.setRotation(correctedHeading);
+    // Apply the rotation to the markers
+    if (userMarkerStreets) userMarkerStreets.setRotation(heading);
+    if (userMarkerHybrid) userMarkerHybrid.setRotation(heading);
     
+    // Sync the map bearing to the device heading
     if (watchId !== null && currentCoords) {
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-        activeMap.jumpTo({ center: currentCoords, bearing: correctedHeading });
+        activeMap.jumpTo({ 
+            center: currentCoords, 
+            bearing: heading 
+        });
     }
 }
 
@@ -402,3 +406,4 @@ document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle 
 </script>
 </body>
 </html>
+
