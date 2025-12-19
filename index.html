@@ -107,7 +107,7 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 <div id="hybridToggle"><img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg" alt="Hybrid Map Icon"></div>
 
 <div id="route-info" class="route-info"></div>
-<div id="hint-text" class="hint-text"><strong>Click on route</strong> to add waypoints<br><strong>Click on waypoints</strong> to remove</div>
+<div id="hint-text" class="hint-text"><strong>Click on route</strong> to add waypoints<br><strong>Click on</strong> waypoints to remove</div>
 
 <div class="attribution-text">
     <a href="https://maplibre.org/" target="_blank">MapLibre</a> | 
@@ -321,25 +321,36 @@ function addPin(lngLat, isSearch = false) {
 }
 
 function addWaypoint(lngLat) {
-  if (!routingEnabled || !startMarker || !endMarker) return;
-  const el = document.createElement('div');
-  if(isMobile) {
-      el.innerHTML = defaultPinSVG;
-  } else {
-      el.style.width = '18px'; el.style.height = '18px'; el.style.borderRadius = '50%';
-      el.style.background = 'rgba(139, 138, 235, 0.6)'; el.style.border = '2px solid rgba(255, 255, 255, 0.8)';
-  }
-  
-  const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
-  const wp = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(map);
-  routePoints.splice(routePoints.length - 1, 0, [lngLat[0], lngLat[1]]); waypointMarkers.push(wp);
-  wp.on('dragend', () => {
-    const idx = waypointMarkers.indexOf(wp);
-    if (idx !== -1) { routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat]; fetchRoute(); }
-  });
-  wp.getElement().addEventListener('click', (e) => { e.stopPropagation(); removeWaypoint(wp); });
-  fetchRoute();
+    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+    const el = document.createElement('div');
+    if (isMobile) {
+        el.style.width = '30px'; el.style.height = '30px';
+        el.style.background = 'rgba(139, 138, 235, 0.9)'; el.style.border = '3px solid white';
+    } else {
+        el.style.width = '18px'; el.style.height = '18px';
+        el.style.background = 'rgba(139, 138, 235, 0.8)'; el.style.border = '2px solid white';
+    }
+    el.style.borderRadius = '50%';
+    const wp = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(activeMap);
+    routePoints.splice(routePoints.length - 1, 0, lngLat);
+    waypointMarkers.push(wp);
+    wp.on('dragend', () => {
+        const idx = waypointMarkers.indexOf(wp);
+        routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat];
+        fetchRoute();
+    });
+    wp.getElement().addEventListener('click', (e) => { e.stopPropagation(); wp.remove(); waypointMarkers.splice(waypointMarkers.indexOf(wp),1); routePoints.splice(waypointMarkers.indexOf(wp)+1,1); fetchRoute(); });
+    fetchRoute();
 }
+
+[mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
+    if (!routingEnabled) return;
+    if (startMarker && endMarker && m.getLayer('route')) {
+        const features = m.queryRenderedFeatures(e.point, { layers: ['route'] });
+        if (features.length > 0) { addWaypoint([e.lngLat.lng, e.lngLat.lat]); return; }
+    }
+    addPin([e.lngLat.lng, e.lngLat.lat]);
+}));
 
 document.getElementById('searchBox').addEventListener('input', (e) => {
     const q = e.target.value;
@@ -365,7 +376,7 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
                 });
                 res.style.display = 'block';
             }).catch(() => setLoading(false));
-    }, 600);
+    }, 1000);
 });
 
 document.getElementById('downloadMap').onclick = () => {
@@ -395,6 +406,3 @@ document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle 
 </script>
 </body>
 </html>
-
-
-
