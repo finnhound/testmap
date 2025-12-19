@@ -206,9 +206,10 @@ function addPin(map, lngLat, isSearch = false) {
       pinTarget = 'end';
       svgContent = endPinSVG;
     } else if (!isSearch) {
-      pinTarget = 'start';
-      if(startMarker) startMarker.remove();
-      svgContent = startPinSVG;
+      // When both pins exist, overwrite end point
+      pinTarget = 'end';
+      if(endMarker) endMarker.remove();
+      svgContent = endPinSVG;
     }
   }
 
@@ -242,6 +243,10 @@ function addPin(map, lngLat, isSearch = false) {
       routePoints[0] = [lngLat[0], lngLat[1]];
     }
     if (isSearch) searchBox.placeholder = "Select ending location";
+    // Fetch route if end marker exists
+    if(endMarker) {
+      fetchRoute();
+    }
   } else if (pinTarget === 'end') {
     if (endMarker) endMarker.remove();
     endMarker = m;
@@ -253,7 +258,7 @@ function addPin(map, lngLat, isSearch = false) {
     if (isSearch) {
       searchBox.placeholder = "Search";
     }
-    // FIXED: Fetch route immediately when end point is set
+    // Fetch route immediately when end point is set
     if(startMarker && endMarker) {
       fetchRoute();
     }
@@ -375,11 +380,11 @@ function addWaypoint(lngLat) {
   if (!routingEnabled || !startMarker || !endMarker) return;
 
   const el = document.createElement('div');
-  el.style.width = '28px';
-  el.style.height = '28px';
+  el.style.width = '18px';
+  el.style.height = '18px';
   el.style.borderRadius = '50%';
-  el.style.background = '#5856d6';
-  el.style.border = '3px solid white';
+  el.style.background = '#8b8aeb';
+  el.style.border = '2px solid white';
   el.style.cursor = 'move';
   el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
 
