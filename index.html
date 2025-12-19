@@ -45,24 +45,26 @@ button, select, input { font:14px 'Inter', sans-serif; }
 
 .hint-text { position:absolute; top:240px; right:10px; z-index:20; background:rgba(255,255,255,0.95); padding:8px 12px; border:1px solid #ccc; border-radius:6px; font:12px 'Inter', sans-serif; max-width:200px; display:none; }
 
-/* MOBILE SCALING */
+/* ENHANCED MOBILE SCALING */
 @media (max-width: 600px) {
     #map-streets, #map-hybrid {
-        width: 83.33%;
-        height: 83.33%;
-        transform: scale(1.2);
+        width: 71.4%; /* Compounding for 1.4x scale (100 / 1.4) */
+        height: 71.4%;
+        transform: scale(1.4);
         transform-origin: top left;
     }
     #controls { 
-        width: 220px; 
-        padding: 15px; 
-        transform: scale(1.1);
+        width: 240px; 
+        padding: 18px; 
+        transform: scale(1.25);
         transform-origin: top right;
+        top: 20px;
+        right: 20px;
     }
-    #searchBox, button, select { font-size: 16px !important; padding: 10px !important; }
-    #downloadMap { top: 240px; right: 20px; transform: scale(1.3); }
-    #hybridToggle { top: 300px; right: 20px; transform: scale(1.3); }
-    #route-info { transform: scale(1.1) translateX(-45%); bottom: 20px; top: auto; }
+    #searchBox, button, select { font-size: 16px !important; padding: 12px !important; }
+    #downloadMap { top: 320px; right: 25px; transform: scale(1.5); }
+    #hybridToggle { top: 400px; right: 25px; transform: scale(1.5); }
+    #route-info { transform: scale(1.3) translateX(-38%); bottom: 40px; top: auto; }
 }
 </style>
 </head>
@@ -144,17 +146,14 @@ const searchBox = document.getElementById('searchBox');
 const searchResults = document.getElementById('searchResults');
 const hintText = document.getElementById('hint-text');
 
-// SVG markers
 const defaultPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 const startPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00c7be" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 const endPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 
-// Initialize maps
 const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 [mapStreets,mapHybrid].forEach(m=>{ m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left'); });
 
-// Hybrid toggle
 const hybridToggleEl = document.getElementById('hybridToggle');
 function showHybrid(isHybrid) {
   hybridToggleEl.classList.toggle('active', isHybrid);
@@ -179,7 +178,6 @@ function showHybrid(isHybrid) {
 showHybrid(currentStyle==='hybrid');
 hybridToggleEl.onclick = ()=>showHybrid(currentStyle==='streets');
 
-// Sync & persist map views
 let syncing=false;
 function syncView(src,tgt){ if(syncing) return; syncing=true; const c=src.getCenter(), z=src.getZoom(); tgt.jumpTo({center:[c.lng,c.lat], zoom:z}); syncing=false; }
 mapStreets.on('move',()=>syncView(mapStreets,mapHybrid));
@@ -187,7 +185,6 @@ mapHybrid.on('move',()=>syncView(mapHybrid,mapStreets));
 function saveView(){ const activeMap = currentStyle==='streets'?mapStreets:mapHybrid; const c=activeMap.getCenter(), z=activeMap.getZoom(); localStorage.setItem('mapView',JSON.stringify({center:[c.lng,c.lat], zoom:z})); }
 mapStreets.on('moveend', saveView); mapHybrid.on('moveend', saveView);
 
-// Routing UI
 const toggleRouteBtn = document.getElementById('toggleRoute');
 function updateRouteButton(){ 
   toggleRouteBtn.textContent = routingEnabled?'Disable Routing':'Enable Routing'; 
@@ -225,7 +222,6 @@ function addPin(map, lngLat, isSearch = false) {
   let svgContent = defaultPinSVG;
   let draggable = routingEnabled;
   let pinTarget = null;
-
   if (routingEnabled) {
     if (!startMarker || (isSearch && searchBox.placeholder.toLowerCase().includes('starting'))) {
       pinTarget = 'start';
@@ -239,62 +235,41 @@ function addPin(map, lngLat, isSearch = false) {
       svgContent = endPinSVG;
     }
   }
-
   const el = document.createElement('div');
   el.style.width = '40px';
   el.style.height = '40px';
   el.style.cursor = draggable ? 'move' : 'pointer';
   el.innerHTML = svgContent;
-
   const m = new maplibregl.Marker({ element: el, draggable: draggable }).setLngLat(lngLat).addTo(map);
-
   if (routingEnabled) {
     m.on('dragend', () => {
       const pos = [m.getLngLat().lng, m.getLngLat().lat];
-      if (startMarker === m) {
-        routePoints[0] = pos;
-      } else if (endMarker === m) {
-        routePoints[routePoints.length - 1] = pos;
-      }
+      if (startMarker === m) routePoints[0] = pos;
+      else if (endMarker === m) routePoints[routePoints.length - 1] = pos;
       if (routePoints.length >= 2) fetchRoute();
     });
   }
-
   if (pinTarget === 'start') {
     if (startMarker) startMarker.remove();
     startMarker = m;
-    if(routePoints.length === 0) {
-      routePoints = [[lngLat[0], lngLat[1]]];
-    } else {
-      routePoints[0] = [lngLat[0], lngLat[1]];
-    }
+    if(routePoints.length === 0) routePoints = [[lngLat[0], lngLat[1]]];
+    else routePoints[0] = [lngLat[0], lngLat[1]];
     if (isSearch) searchBox.placeholder = "Select ending location";
     if(endMarker) fetchRoute();
   } else if (pinTarget === 'end') {
     if (endMarker) endMarker.remove();
     endMarker = m;
-    if(routePoints.length === 1) {
-      routePoints.push([lngLat[0], lngLat[1]]);
-    } else {
-      routePoints[routePoints.length - 1] = [lngLat[0], lngLat[1]];
-    }
+    if(routePoints.length === 1) routePoints.push([lngLat[0], lngLat[1]]);
+    else routePoints[routePoints.length - 1] = [lngLat[0], lngLat[1]];
     if (isSearch) searchBox.placeholder = "Search";
     if(startMarker && endMarker) fetchRoute();
   }
-
   m.getElement().addEventListener('click', (e) => {
     e.stopPropagation();
     m.remove();
-    if (startMarker === m) { 
-      startMarker = null; 
-      clearRoute();
-    }
-    if (endMarker === m) { 
-      endMarker = null; 
-      clearRoute();
-    }
+    if (startMarker === m) { startMarker = null; clearRoute(); }
+    if (endMarker === m) { endMarker = null; clearRoute(); }
   });
-
   updateRouteButton();
 }
 
