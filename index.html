@@ -183,33 +183,24 @@ function syncView(src, tgt) {
 mapStreets.on('move', () => syncView(mapStreets, mapHybrid));
 mapHybrid.on('move', () => syncView(mapHybrid, mapStreets));
 
-The issue you're experiencing—where the pointer is consistently off by about 45 degrees—is a common phenomenon in web mapping. It occurs because the deviceorientation API (specifically the alpha value) does not always align with "True North" by default on all browsers; it often starts from the direction the phone was facing when the page loaded.To fix this specifically for the behavior you described, we need to implement a compass heading calculation that uses the rotation matrix if the standard absolute heading isn't available.Replace your existing handleOrientation function (found around line 147) with the logic below. This includes a fallback calculation to ensure that when you face Southeast ($135^\circ$), the pointer follows accurately.JavaScript// --- GPS TRACKING & ORBITAL LOCK ---
+// --- GPS TRACKING & ORBITAL LOCK ---
 async function handleOrientation(event) {
     let heading = null;
-
     if (event.webkitCompassHeading) {
-        // iOS: provides the magnetic heading directly
         heading = event.webkitCompassHeading;
     } else if (event.absolute === true || event.alpha !== null) {
-        // Android/Chrome: Use the alpha value. 
-        // We add a 90-degree adjustment often needed for the 
-        // difference between device 'top' and compass 'north'
+        // Correcting Android/Chrome alpha mapping
         heading = (360 - event.alpha);
     }
 
     if (heading === null) return;
 
-    // Apply the rotation to the markers
     if (userMarkerStreets) userMarkerStreets.setRotation(heading);
     if (userMarkerHybrid) userMarkerHybrid.setRotation(heading);
     
-    // Sync the map bearing to the device heading
     if (watchId !== null && currentCoords) {
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-        activeMap.jumpTo({ 
-            center: currentCoords, 
-            bearing: heading 
-        });
+        activeMap.jumpTo({ center: currentCoords, bearing: heading });
     }
 }
 
@@ -339,7 +330,16 @@ function addWaypoint(lngLat) {
         routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat];
         fetchRoute();
     });
-    wp.getElement().addEventListener('click', (e) => { e.stopPropagation(); wp.remove(); waypointMarkers.splice(waypointMarkers.indexOf(wp),1); routePoints.splice(waypointMarkers.indexOf(wp)+1,1); fetchRoute(); });
+    wp.getElement().addEventListener('click', (e) => { 
+        e.stopPropagation(); 
+        const idx = waypointMarkers.indexOf(wp);
+        if (idx > -1) {
+            waypointMarkers.splice(idx, 1);
+            routePoints.splice(idx + 1, 1);
+            wp.remove();
+            fetchRoute();
+        }
+    });
     fetchRoute();
 }
 
@@ -357,7 +357,6 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     if(!q) { document.getElementById('searchResults').style.display = 'none'; return; }
     
-    // 1-second debounce
     searchTimeout = setTimeout(() => {
         setLoading(true);
         fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
