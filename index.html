@@ -193,17 +193,17 @@ button:active { transform: scale(0.97); }
         transform-origin: top left; 
     }
     
-    /* BIGGER MOBILE UI: Anchored to corner to stop floating */
+    /* Mobile UI: Top Pill (scaled) */
     #controls { 
         flex-direction: column;
-        width: 200px; 
-        padding: 15px; 
-        transform: scale(1.7); 
-        transform-origin: top right; 
+        width: 220px; 
+        padding: 12px 16px; 
+        transform: scale(1.5); 
+        transform-origin: top center; 
         top: 15px; 
-        right: 15px; 
-        left: auto;
-        border-radius: 12px;
+        left: 50%;
+        right: auto;
+        border-radius: 20px;
     }
     
     #searchBox { width: 100%; font-size: 16px !important; }
@@ -221,7 +221,7 @@ button:active { transform: scale(0.97); }
     }
     
     #routeFromLocation {
-        top: 730px;
+        top: 630px;
         right: 20px;
         transform: scale(1.6);
         transform-origin: right center;
@@ -229,7 +229,8 @@ button:active { transform: scale(0.97); }
 
     #downloadMap { top: 460px; right: 20px; transform: scale(1.8); transform-origin: right center; }
     #gpsToggle { top: 550px; right: 20px; transform: scale(1.8); transform-origin: right center; }
-    #hybridToggle { top: 640px; right: 20px; transform: scale(1.8); transform-origin: right center; }
+    #gpsToggle.active { transform: scale(1.8); }
+    #hybridToggle { top: 730px; right: 20px; transform: scale(1.8); transform-origin: right center; }
     
     .maplibregl-ctrl-group { display: none !important; }
     
@@ -566,8 +567,10 @@ document.getElementById('gpsToggle').onclick = async () => {
                 locationPinStreets = new maplibregl.Marker({element: el1}).setLngLat(currentCoords).addTo(mapStreets);
                 locationPinHybrid = new maplibregl.Marker({element: el2}).setLngLat(currentCoords).addTo(mapHybrid);
                 
-                activeMap.flyTo({center: currentCoords, zoom: 14, duration: 1500});
                 document.getElementById('gpsToggle').classList.add('active');
+                
+                // Pan to location
+                activeMap.flyTo({center: currentCoords, zoom: Math.max(activeMap.getZoom(), 14), duration: 1500});
                 
                 // If routing enabled, override start point
                 if (routingEnabled) {
@@ -809,38 +812,41 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
                         const loc = [parseFloat(item.lon), parseFloat(item.lat)];
                         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
                         
-                        // Remove existing search pins
-                        if (searchPinStreets) {
-                            searchPinStreets.remove();
-                            searchPinHybrid.remove();
-                        }
-                        
-                        // Create purple search pin
-                        const el1 = document.createElement('div');
-                        el1.style.width = '40px';
-                        el1.style.height = '40px';
-                        el1.innerHTML = searchPinSVG;
-                        
-                        const el2 = document.createElement('div');
-                        el2.style.width = '40px';
-                        el2.style.height = '40px';
-                        el2.innerHTML = searchPinSVG;
-                        
-                        searchPinStreets = new maplibregl.Marker({element: el1}).setLngLat(loc).addTo(mapStreets);
-                        searchPinHybrid = new maplibregl.Marker({element: el2}).setLngLat(loc).addTo(mapHybrid);
-                        
-                        // Make search pins clickable to remove
-                        [el1, el2].forEach(element => {
-                            element.style.cursor = 'pointer';
-                            element.addEventListener('click', (evt) => {
-                                evt.stopPropagation();
-                                if (searchPinStreets) {
-                                    searchPinStreets.remove();
-                                    searchPinHybrid.remove();
-                                    searchPinStreets = searchPinHybrid = null;
-                                }
+                        // In routing mode, don't show search pin - just add route pin
+                        if (!routingEnabled) {
+                            // Remove existing search pins
+                            if (searchPinStreets) {
+                                searchPinStreets.remove();
+                                searchPinHybrid.remove();
+                            }
+                            
+                            // Create purple search pin
+                            const el1 = document.createElement('div');
+                            el1.style.width = '40px';
+                            el1.style.height = '40px';
+                            el1.innerHTML = searchPinSVG;
+                            
+                            const el2 = document.createElement('div');
+                            el2.style.width = '40px';
+                            el2.style.height = '40px';
+                            el2.innerHTML = searchPinSVG;
+                            
+                            searchPinStreets = new maplibregl.Marker({element: el1}).setLngLat(loc).addTo(mapStreets);
+                            searchPinHybrid = new maplibregl.Marker({element: el2}).setLngLat(loc).addTo(mapHybrid);
+                            
+                            // Make search pins clickable to remove
+                            [el1, el2].forEach(element => {
+                                element.style.cursor = 'pointer';
+                                element.addEventListener('click', (evt) => {
+                                    evt.stopPropagation();
+                                    if (searchPinStreets) {
+                                        searchPinStreets.remove();
+                                        searchPinHybrid.remove();
+                                        searchPinStreets = searchPinHybrid = null;
+                                    }
+                                });
                             });
-                        });
+                        }
                         
                         activeMap.flyTo({center: loc, zoom: 14, duration: 1500});
                         
