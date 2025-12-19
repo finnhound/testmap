@@ -6,77 +6,74 @@
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
 <style>
+/* --- BASE STYLES (PC/LANDSCAPE) --- */
 html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: hidden; background: #000; }
 .map { width:100%; height:100%; position:absolute; top:0; left:0; transition: transform 0.3s ease; }
 
-#controls { position:absolute; top:10px; right:10px; z-index:25; background:white; padding:10px; border:1px solid #ccc; display:flex; flex-direction:column; gap:8px; border-radius:8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-#hybridToggle { position:absolute; top:180px; right:10px; z-index:20; background:white; padding:8px; border:1px solid #ccc; cursor:pointer; border-radius:6px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; }
-#hybridToggle img { width:28px; height:28px; }
+#controls { position:absolute; top:10px; right:10px; z-index:25; background:white; padding:10px; border:1px solid #ccc; display:flex; flex-direction:column; gap:8px; border-radius:8px; }
+#hybridToggle { position:absolute; top:180px; right:10px; z-index:20; background:white; padding:8px; border:1px solid #ccc; cursor:pointer; border-radius:6px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
+#downloadMap { position:absolute; top:130px; right:10px; z-index:20; background:white; padding:8px; border-radius:6px; border:1px solid #ccc; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
+#downloadMap svg, #hybridToggle img { width:24px; height:24px; }
 
-#downloadMap { position:absolute; top:130px; right:10px; z-index:20; background:white; padding:8px; border-radius:6px; border:1px solid #ccc; cursor:pointer; width:44px; height:44px; display:flex; align-items:center; justify-content:center; }
-#downloadMap svg { width:28px; height:28px; }
-
-button, select, input { font:14px 'Inter', sans-serif; }
-
-#searchBox { width:220px; padding:6px; border-radius:4px; border:1px solid #ccc; z-index:26; position:relative; }
-#searchResults { 
-  position:absolute; top:100%; left:0; background:white; 
-  border:1px solid #ccc; max-height:220px; overflow-y:auto; 
-  width:100%; z-index:100; border-radius:4px; display:none; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.searchItem { padding:10px; cursor:pointer; font-size: 13px; border-bottom: 1px solid #eee; }
+#searchBox { width:200px; padding:6px; border-radius:4px; border:1px solid #ccc; }
+#searchResults { position:absolute; top:100%; left:0; background:white; border:1px solid #ccc; max-height:200px; overflow-y:auto; width:100%; z-index:100; display:none; }
+.searchItem { padding:8px; cursor:pointer; font-size:13px; border-bottom:1px solid #eee; }
 
 .route-info { position:absolute; top:50px; left:50%; transform:translateX(-50%); background:white; padding:10px 16px; border:2px solid #333; font:bold 14px 'Inter', sans-serif; z-index:25; border-radius:8px; display:none; white-space: nowrap; }
 
-.attribution-text { position:absolute; bottom:10px; right:10px; z-index:25; background:rgba(255,255,255,0.9); padding:6px 12px; font:11px 'Inter', sans-serif; border-radius:6px; border: 1px solid #ccc; line-height: 1.4; }
-.attribution-text a { color: #0074d9; text-decoration: none; }
+.attribution-text { position:absolute; bottom:10px; right:10px; z-index:25; background:rgba(255,255,255,0.85); padding:4px 8px; font:11px 'Inter', sans-serif; border-radius:4px; border:1px solid #ccc; }
 .maptiler-logo { position:absolute; left:10px; bottom:10px; z-index:25; }
 
-/* VERTICAL SCREEN DETECTION AND SCALE UP */
+/* --- MOBILE ONLY STYLES (PORTRAIT) --- */
 @media screen and (orientation: portrait) {
+    /* Scale Map Up */
     #map-streets, #map-hybrid {
-        width: 62.5%; 
+        width: 62.5%; /* Higher Map Scale: 100 / 1.6 */
         height: 62.5%;
         transform: scale(1.6);
         transform-origin: top left;
     }
+
+    /* Scale UI Controls */
     #controls { 
-        width: 200px; 
-        padding: 18px; 
-        transform: scale(1.4);
+        width: 170px; 
+        padding: 15px; 
+        transform: scale(1.35); 
         transform-origin: top right;
-        top: 20px;
+        top: 15px;
         right: 15px;
     }
-    #searchBox { width: 175px; font-size: 18px !important; padding: 14px !important; }
-    button, select { font-size: 16px !important; padding: 12px !important; height: auto !important; }
-    
-    #downloadMap { top: 440px; right: 25px; transform: scale(1.7); }
-    #hybridToggle { top: 520px; right: 25px; transform: scale(1.7); }
-    
-    .maplibregl-ctrl-group { transform: scale(1.8); transform-origin: top left; margin: 25px !important; }
-    
-    .attribution-text { 
-        bottom: 15px; 
-        left: 50%; 
-        transform: translateX(-50%) scale(1.2); 
+    #searchBox { font-size: 16px !important; padding: 12px !important; }
+    button, select { font-size: 15px !important; padding: 10px !important; }
+
+    /* Floating Buttons Positioning */
+    #downloadMap { top: 400px; right: 20px; transform: scale(1.6); }
+    #hybridToggle { top: 470px; right: 20px; transform: scale(1.6); }
+
+    /* Navigation Controls Scale */
+    .maplibregl-ctrl-group { transform: scale(1.7); transform-origin: top left; margin: 20px !important; }
+
+    /* Route Info Box Mobile */
+    #route-info { 
+        top: auto;
+        bottom: 120px;
+        transform: scale(1.3) translateX(-50%);
+        left: 50%;
+        min-width: 220px;
+        text-align: center;
+    }
+
+    /* Mobile Attribution */
+    .attribution-text {
+        bottom: 15px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) scale(1.15);
         width: 85%;
         text-align: center;
-        font-size: 10px;
+        padding: 8px;
     }
-    .maptiler-logo { bottom: 85px; left: 20px; transform: scale(1.5); }
-    
-    #route-info { 
-        transform: scale(1.4) translateX(-50%); 
-        bottom: 140px; 
-        top: auto; 
-        left: 50%; 
-        min-width: 220px; 
-        text-align: center;
-        padding: 12px;
-    }
+    .maptiler-logo { bottom: 70px; left: 20px; transform: scale(1.4); }
 }
 </style>
 </head>
@@ -108,10 +105,7 @@ button, select, input { font:14px 'Inter', sans-serif; }
 <div id="route-info" class="route-info"></div>
 
 <div class="attribution-text">
-  <a href="https://maplibre.org/" target="_blank">MapLibre</a> | 
-  <a href="https://openrouteservice.org/" target="_blank">OpenRouteService</a> | 
-  © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> | 
-  © <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>
+    MapLibre | OpenRouteService | © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> | Tiles © <a href="https://www.maptiler.com/" target="_blank">MapTiler</a>
 </div>
 <a class="maptiler-logo" href="https://www.maptiler.com" target="_blank"><img src="https://api.maptiler.com/resources/logo.svg" alt="MapTiler"></a>
 
@@ -121,14 +115,18 @@ const MT_KEY = 'kUOJqqeRX1BMaXctsgK5';
 const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
 const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
 
-const waypointPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
-const startPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00c7be" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
-const endPinSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
+// Define Marker SVGs with thicker strokes for mobile
+const isMobile = window.innerHeight > window.innerWidth;
+const strokeW = isMobile ? 4 : 3;
+const pinSize = isMobile ? 48 : 40;
+
+const waypointPinSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
+const startPinSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 24 24" fill="none" stroke="#00c7be" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
+const endPinSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 
 const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
 let routingEnabled = JSON.parse(localStorage.getItem('mapRouteEnabled') || 'false');
-let routingMode = document.getElementById('mode').value;
 let routePoints = [];
 let startMarker, endMarker, waypointMarkers = [];
 
@@ -148,38 +146,23 @@ function showHybrid(isHybrid) {
 showHybrid(currentStyle==='hybrid');
 document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle==='streets');
 
-function syncView(src,tgt){ tgt.jumpTo({center: src.getCenter(), zoom: src.getZoom()}); }
-mapStreets.on('move',()=>syncView(mapStreets,mapHybrid));
-mapHybrid.on('move',()=>syncView(mapHybrid,mapStreets));
-
-document.getElementById('toggleRoute').onclick = () => {
-  routingEnabled = !routingEnabled;
-  document.getElementById('toggleRoute').textContent = routingEnabled ? 'Disable Routing' : 'Enable Routing';
-  if(!routingEnabled) clearRoute();
-};
-
-function clearRoute(){
-  [startMarker, endMarker, ...waypointMarkers].forEach(m => m?.remove());
-  startMarker = endMarker = null; waypointMarkers = []; routePoints = [];
-  document.getElementById('route-info').style.display = 'none';
-  [mapStreets,mapHybrid].forEach(m=>{ if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }});
-}
-
-document.getElementById('resetRoute').onclick = clearRoute;
-
 function fetchRoute(){
   if(routePoints.length < 2) return;
-  fetch(`https://api.openrouteservice.org/v2/directions/${routingMode}/geojson`, {
+  fetch(`https://api.openrouteservice.org/v2/directions/${document.getElementById('mode').value}/geojson`, {
     method:'POST', headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ coordinates: routePoints })
   }).then(res => res.json()).then(data => {
     const feat = data.features[0];
     document.getElementById('route-info').innerHTML = `Dist: ${(feat.properties.summary.distance/1000).toFixed(2)}km | Dur: ${Math.round(feat.properties.summary.duration/60)}m`;
     document.getElementById('route-info').style.display = 'block';
+    
+    // Scale line thickness for mobile
+    const lineWeight = window.innerHeight > window.innerWidth ? 9 : 5;
+    
     [mapStreets, mapHybrid].forEach(m => {
       if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }
       m.addSource('route', { type: 'geojson', data: feat.geometry });
-      m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': window.innerHeight > window.innerWidth ? 8 : 5 } });
+      m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': lineWeight } });
     });
   });
 }
@@ -188,19 +171,12 @@ function addMarker(lngLat, type) {
   const el = document.createElement('div');
   el.innerHTML = type === 'start' ? startPinSVG : type === 'end' ? endPinSVG : waypointPinSVG;
   const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(currentStyle==='streets'?mapStreets:mapHybrid);
-  
-  if(type === 'start') startMarker = m;
-  else if(type === 'end') endMarker = m;
-  else waypointMarkers.push(m);
-
+  if(type === 'start') startMarker = m; else if(type === 'end') endMarker = m; else waypointMarkers.push(m);
   m.on('dragend', () => {
-    const newCoords = [m.getLngLat().lng, m.getLngLat().lat];
-    if(type === 'start') routePoints[0] = newCoords;
-    else if(type === 'end') routePoints[routePoints.length-1] = newCoords;
-    else {
-      const idx = waypointMarkers.indexOf(m);
-      routePoints[idx+1] = newCoords;
-    }
+    const coords = [m.getLngLat().lng, m.getLngLat().lat];
+    if(type === 'start') routePoints[0] = coords;
+    else if(type === 'end') routePoints[routePoints.length-1] = coords;
+    else { routePoints[waypointMarkers.indexOf(m)+1] = coords; }
     fetchRoute();
   });
   return m;
@@ -213,13 +189,27 @@ function addMarker(lngLat, type) {
   else if(!endMarker) { routePoints.push(coords); addMarker(coords, 'end'); fetchRoute(); }
   else {
     const feat = m.queryRenderedFeatures(e.point, { layers: ['route'] });
-    if(feat.length > 0) {
-      routePoints.splice(routePoints.length-1, 0, coords);
-      addMarker(coords, 'waypoint');
-      fetchRoute();
-    }
+    if(feat.length > 0) { routePoints.splice(routePoints.length-1, 0, coords); addMarker(coords, 'waypoint'); fetchRoute(); }
   }
 }));
+
+document.getElementById('toggleRoute').onclick = () => {
+  routingEnabled = !routingEnabled;
+  document.getElementById('toggleRoute').textContent = routingEnabled ? 'Disable Routing' : 'Enable Routing';
+  if(!routingEnabled) {
+    [startMarker, endMarker, ...waypointMarkers].forEach(m => m?.remove());
+    startMarker = endMarker = null; waypointMarkers = []; routePoints = [];
+    document.getElementById('route-info').style.display = 'none';
+    [mapStreets,mapHybrid].forEach(m=>{ if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }});
+  }
+};
+
+document.getElementById('resetRoute').onclick = () => {
+    [startMarker, endMarker, ...waypointMarkers].forEach(m => m?.remove());
+    startMarker = endMarker = null; waypointMarkers = []; routePoints = [];
+    document.getElementById('route-info').style.display = 'none';
+    [mapStreets,mapHybrid].forEach(m=>{ if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }});
+};
 
 const searchBox = document.getElementById('searchBox');
 const searchResults = document.getElementById('searchResults');
@@ -239,12 +229,6 @@ searchBox.oninput = () => {
       });
       searchResults.style.display = 'block';
     });
-};
-
-document.getElementById('downloadMap').onclick = () => {
-  const canvas = (currentStyle==='streets'?mapStreets:mapHybrid).getCanvas();
-  const link = document.createElement('a');
-  link.download = 'map.png'; link.href = canvas.toDataURL(); link.click();
 };
 </script>
 </body>
