@@ -98,6 +98,7 @@ let routePoints = [];
 let markers = [];
 let startMarker = null;
 let endMarker = null;
+let waypointMarkers = [];
 const routeInfo = document.getElementById('route-info');
 const loadingEl = document.getElementById('loading');
 const searchBox = document.getElementById('searchBox');
@@ -251,6 +252,8 @@ function redrawOtherPin() {
 
 // Clear route
 function clearRoute(){
+  waypointMarkers.forEach(wp => wp.remove());
+waypointMarkers = [];
   markers.forEach(m=>m.remove());
   markers=[];
   if(startMarker){ startMarker.remove(); startMarker=null; }
@@ -291,8 +294,64 @@ function fetchRoute(){
   });
 }
 
+  function addWaypoint(lngLat) {
+  if (!routingEnabled || !startMarker || !endMarker) return;
+
+  const el = document.createElement('div');
+  el.style.width = '28px';
+  el.style.height = '28px';
+  el.style.borderRadius = '50%';
+  el.style.background = '#5856d6';
+  el.style.border = '3px solid white';
+  el.style.cursor = 'move';
+
+  const wp = new maplibregl.Marker({
+    element: el,
+    draggable: true
+  })
+    .setLngLat(lngLat)
+    .addTo(currentStyle === 'streets' ? mapStreets : mapHybrid);
+
+  // Insert waypoint before end point
+  routePoints.splice(routePoints.length - 1, 0, lngLat);
+  waypointMarkers.push(wp);
+
+  wp.on('dragend', () => {
+    const idx = waypointMarkers.indexOf(wp);
+    if (idx !== -1) {
+      routePoints[idx + 1] = [
+        wp.getLngLat().lng,
+        wp.getLngLat().lat
+      ];
+      fetchRoute();
+    }
+  });
+
+  wp.getElement().addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    removeWaypoint(wp);
+  });
+
+  fetchRoute();
+}
+
+  function removeWaypoint(wp) {
+  const idx = waypointMarkers.indexOf(wp);
+  if (idx === -1) return;
+
+  wp.remove();
+  waypointMarkers.splice(idx, 1);
+  routePoints.splice(idx + 1, 1);
+
+  fetchRoute();
+}
+
+  
+
 // Map clicks
 function onMapClick(e){
+  waypointMarkers.forEach(wp => wp.remove());
+waypointMarkers = [];
   if(!routingEnabled) return;
   const map = currentStyle==='streets'?mapStreets:mapHybrid;
   addPin(map,[e.lngLat.lng,e.lngLat.lat], true);
@@ -359,6 +418,7 @@ document.getElementById('downloadMap').onclick = ()=>{
 </script>
 </body>
 </html>
+
 
 
 
