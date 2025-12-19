@@ -142,6 +142,13 @@ let userMarkerStreets = null, userMarkerHybrid = null;
 const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 
+    // Disable manual rotation/pitching on mobile to prevent accidental orientation changes
+if (isMobile) {
+    [mapStreets, mapHybrid].forEach(m => {
+        m.touchZoomRotate.disableRotation();
+        m.dragRotate.disable();
+    });
+}
 if (!isMobile) {
     [mapStreets,mapHybrid].forEach(m=>{ m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left'); });
 }
@@ -418,6 +425,7 @@ document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle 
 </script>
 </body>
 </html>
+
 
 
 
