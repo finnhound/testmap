@@ -21,17 +21,9 @@ button, select, input { font:14px 'Inter', sans-serif; }
 
 #searchBox { width:200px; padding:4px; border-radius:4px; border:1px solid #ccc; z-index:26; position:relative; }
 #searchResults { 
-  position:absolute; 
-  top:38px; 
-  right:10px; 
-  background:white; 
-  border:1px solid #ccc; 
-  max-height:180px; 
-  overflow-y:auto; 
-  width:200px; 
-  z-index:100; 
-  border-radius:4px; 
-  display:none; 
+  position:absolute; top:38px; right:10px; background:white; 
+  border:1px solid #ccc; max-height:180px; overflow-y:auto; 
+  width:200px; z-index:100; border-radius:4px; display:none; 
 }
 
 .searchItem { padding:4px 6px; cursor:pointer; }
@@ -45,26 +37,26 @@ button, select, input { font:14px 'Inter', sans-serif; }
 
 .hint-text { position:absolute; top:240px; right:10px; z-index:20; background:rgba(255,255,255,0.95); padding:8px 12px; border:1px solid #ccc; border-radius:6px; font:12px 'Inter', sans-serif; max-width:200px; display:none; }
 
-/* ENHANCED MOBILE SCALING */
-@media (max-width: 600px) {
+/* VERTICAL SCREEN DETECTION AND SCALE UP */
+@media screen and (orientation: portrait) {
     #map-streets, #map-hybrid {
-        width: 71.4%; /* Compounding for 1.4x scale (100 / 1.4) */
-        height: 71.4%;
-        transform: scale(1.4);
+        width: 66.66%; /* Adjust dimensions to prevent clipping at 1.5x scale (100 / 1.5) */
+        height: 66.66%;
+        transform: scale(1.5);
         transform-origin: top left;
     }
     #controls { 
-        width: 240px; 
-        padding: 18px; 
-        transform: scale(1.25);
+        width: 200px; 
+        padding: 15px; 
+        transform: scale(1.4);
         transform-origin: top right;
         top: 20px;
         right: 20px;
     }
     #searchBox, button, select { font-size: 16px !important; padding: 12px !important; }
-    #downloadMap { top: 320px; right: 25px; transform: scale(1.5); }
-    #hybridToggle { top: 400px; right: 25px; transform: scale(1.5); }
-    #route-info { transform: scale(1.3) translateX(-38%); bottom: 40px; top: auto; }
+    #downloadMap { top: 380px; right: 25px; transform: scale(1.6); }
+    #hybridToggle { top: 460px; right: 25px; transform: scale(1.6); }
+    #route-info { transform: scale(1.4) translateX(-35%); bottom: 50px; top: auto; }
 }
 </style>
 </head>
@@ -196,9 +188,7 @@ toggleRouteBtn.onclick = ()=>{
   routingEnabled = !routingEnabled; 
   localStorage.setItem('mapRouteEnabled',routingEnabled); 
   updateRouteButton(); 
-  if(!routingEnabled){ 
-    clearRoute(); 
-  } 
+  if(!routingEnabled) clearRoute(); 
 };
 
 document.getElementById('mode').onchange = function(){ 
@@ -224,22 +214,15 @@ function addPin(map, lngLat, isSearch = false) {
   let pinTarget = null;
   if (routingEnabled) {
     if (!startMarker || (isSearch && searchBox.placeholder.toLowerCase().includes('starting'))) {
-      pinTarget = 'start';
-      svgContent = startPinSVG;
+      pinTarget = 'start'; svgContent = startPinSVG;
     } else if (!endMarker || (isSearch && searchBox.placeholder.toLowerCase().includes('ending'))) {
-      pinTarget = 'end';
-      svgContent = endPinSVG;
+      pinTarget = 'end'; svgContent = endPinSVG;
     } else if (!isSearch) {
-      pinTarget = 'end';
-      if(endMarker) endMarker.remove();
-      svgContent = endPinSVG;
+      pinTarget = 'end'; if(endMarker) endMarker.remove(); svgContent = endPinSVG;
     }
   }
   const el = document.createElement('div');
-  el.style.width = '40px';
-  el.style.height = '40px';
-  el.style.cursor = draggable ? 'move' : 'pointer';
-  el.innerHTML = svgContent;
+  el.style.width = '40px'; el.style.height = '40px'; el.style.cursor = draggable ? 'move' : 'pointer'; el.innerHTML = svgContent;
   const m = new maplibregl.Marker({ element: el, draggable: draggable }).setLngLat(lngLat).addTo(map);
   if (routingEnabled) {
     m.on('dragend', () => {
@@ -250,23 +233,18 @@ function addPin(map, lngLat, isSearch = false) {
     });
   }
   if (pinTarget === 'start') {
-    if (startMarker) startMarker.remove();
-    startMarker = m;
-    if(routePoints.length === 0) routePoints = [[lngLat[0], lngLat[1]]];
-    else routePoints[0] = [lngLat[0], lngLat[1]];
+    if (startMarker) startMarker.remove(); startMarker = m;
+    if(routePoints.length === 0) routePoints = [[lngLat[0], lngLat[1]]]; else routePoints[0] = [lngLat[0], lngLat[1]];
     if (isSearch) searchBox.placeholder = "Select ending location";
     if(endMarker) fetchRoute();
   } else if (pinTarget === 'end') {
-    if (endMarker) endMarker.remove();
-    endMarker = m;
-    if(routePoints.length === 1) routePoints.push([lngLat[0], lngLat[1]]);
-    else routePoints[routePoints.length - 1] = [lngLat[0], lngLat[1]];
+    if (endMarker) endMarker.remove(); endMarker = m;
+    if(routePoints.length === 1) routePoints.push([lngLat[0], lngLat[1]]); else routePoints[routePoints.length - 1] = [lngLat[0], lngLat[1]];
     if (isSearch) searchBox.placeholder = "Search";
     if(startMarker && endMarker) fetchRoute();
   }
   m.getElement().addEventListener('click', (e) => {
-    e.stopPropagation();
-    m.remove();
+    e.stopPropagation(); m.remove();
     if (startMarker === m) { startMarker = null; clearRoute(); }
     if (endMarker === m) { endMarker = null; clearRoute(); }
   });
@@ -274,136 +252,79 @@ function addPin(map, lngLat, isSearch = false) {
 }
 
 function clearRoute(){
-  waypointMarkers.forEach(wp => wp.remove());
-  waypointMarkers = [];
+  waypointMarkers.forEach(wp => wp.remove()); waypointMarkers = [];
   if(startMarker){ startMarker.remove(); startMarker = null; }
   if(endMarker){ endMarker.remove(); endMarker = null; }
-  routePoints = [];
-  routeInfo.style.display = 'none';
-  hintText.style.display = 'none';
-  [mapStreets,mapHybrid].forEach(m=>{ 
-    if(m.getLayer('route')) m.removeLayer('route'); 
-    if(m.getSource('route')) m.removeSource('route'); 
-  });
+  routePoints = []; routeInfo.style.display = 'none'; hintText.style.display = 'none';
+  [mapStreets,mapHybrid].forEach(m=>{ if(m.getLayer('route')) m.removeLayer('route'); if(m.getSource('route')) m.removeSource('route'); });
   updateSearchPlaceholder();
 }
 
-let loadingTimer = null;
 function fetchRoute(){
   if(routePoints.length < 2) return;
-  clearTimeout(loadingTimer);
-  loadingTimer = setTimeout(()=>{ loadingEl.style.display='block'; }, 300);
   const url = `https://api.openrouteservice.org/v2/directions/${routingMode}/geojson`;
-  const body = { coordinates: routePoints };
-  fetch(url, {
-    method:'POST', 
-    headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" }, 
-    body: JSON.stringify(body)
-  })
+  fetch(url, { method:'POST', headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ coordinates: routePoints }) })
   .then(res => res.json())
   .then(data => {
-    clearTimeout(loadingTimer); 
-    loadingEl.style.display = 'none';
     if(!data.features || !data.features[0]) return;
-    const feature = data.features[0];
-    const routeGeoJSON = feature.geometry;
-    const distanceKm = (feature.properties.summary.distance / 1000).toFixed(2);
-    const durationMin = Math.round(feature.properties.summary.duration / 60);
-    routeInfo.innerHTML = `Distance: ${distanceKm} km | Duration: ${durationMin} min`;
-    routeInfo.style.display = 'block';
-    hintText.style.display = 'block';
+    const feature = data.features[0]; const routeGeoJSON = feature.geometry;
+    routeInfo.innerHTML = `Distance: ${(feature.properties.summary.distance / 1000).toFixed(2)} km | Duration: ${Math.round(feature.properties.summary.duration / 60)} min`;
+    routeInfo.style.display = 'block'; hintText.style.display = 'block';
     [mapStreets, mapHybrid].forEach(m => {
       if(m.getSource('route')){ m.removeLayer('route'); m.removeSource('route'); }
       m.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: routeGeoJSON } });
-      m.addLayer({
-        id: 'route', type: 'line', source: 'route',
-        layout: { 'line-cap': 'round', 'line-join': 'round' }, 
-        paint: { 'line-color': '#0074d9', 'line-width': 5 }
-      });
+      m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': 5 } });
     });
-    const coords = routeGeoJSON.coordinates;
-    const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
-    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-    activeMap.fitBounds(bounds, {padding: 100});
+    const bounds = routeGeoJSON.coordinates.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(routeGeoJSON.coordinates[0], routeGeoJSON.coordinates[0]));
+    (currentStyle === 'streets' ? mapStreets : mapHybrid).fitBounds(bounds, {padding: 100});
   });
 }
 
 function addWaypoint(lngLat) {
   if (!routingEnabled || !startMarker || !endMarker) return;
   const el = document.createElement('div');
-  el.style.width = '18px';
-  el.style.height = '18px';
-  el.style.borderRadius = '50%';
-  el.style.background = 'rgba(139, 138, 235, 0.6)'; 
-  el.style.border = '2px solid rgba(255, 255, 255, 0.8)';
-  el.style.cursor = 'pointer';
-  el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+  el.style.width = '18px'; el.style.height = '18px'; el.style.borderRadius = '50%';
+  el.style.background = 'rgba(139, 138, 235, 0.6)'; el.style.border = '2px solid rgba(255, 255, 255, 0.8)';
   const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
   const wp = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(map);
-  routePoints.splice(routePoints.length - 1, 0, [lngLat[0], lngLat[1]]);
-  waypointMarkers.push(wp);
+  routePoints.splice(routePoints.length - 1, 0, [lngLat[0], lngLat[1]]); waypointMarkers.push(wp);
   wp.on('dragend', () => {
     const idx = waypointMarkers.indexOf(wp);
-    if (idx !== -1) {
-      routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat];
-      fetchRoute();
-    }
+    if (idx !== -1) { routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat]; fetchRoute(); }
   });
-  wp.getElement().addEventListener('click', (e) => {
-    e.stopPropagation();
-    removeWaypoint(wp);
-  });
+  wp.getElement().addEventListener('click', (e) => { e.stopPropagation(); removeWaypoint(wp); });
   fetchRoute();
 }
 
 function removeWaypoint(wp) {
-  const idx = waypointMarkers.indexOf(wp);
-  if (idx === -1) return;
-  wp.remove();
-  waypointMarkers.splice(idx, 1);
-  routePoints.splice(idx + 1, 1);
-  fetchRoute();
+  const idx = waypointMarkers.indexOf(wp); if (idx === -1) return;
+  wp.remove(); waypointMarkers.splice(idx, 1); routePoints.splice(idx + 1, 1); fetchRoute();
 }
 
 function onMapClick(e) {
   const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
   if (routingEnabled && startMarker && endMarker && map.getLayer('route')) {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['route'] });
-    if (features.length > 0) {
-      addWaypoint([e.lngLat.lng, e.lngLat.lat]);
-      return;
-    }
+    if (map.queryRenderedFeatures(e.point, { layers: ['route'] }).length > 0) { addWaypoint([e.lngLat.lng, e.lngLat.lat]); return; }
   }
-  if (!routingEnabled) return;
-  addPin(map, [e.lngLat.lng, e.lngLat.lat], false);
+  if (!routingEnabled) return; addPin(map, [e.lngLat.lng, e.lngLat.lat], false);
 }
 
 [mapStreets, mapHybrid].forEach(m => m.on('click', onMapClick));
 
 let debounceTimer;
 searchBox.addEventListener('input', () => {
-  updateSearchPlaceholder();
-  clearTimeout(debounceTimer);
+  updateSearchPlaceholder(); clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    const query = searchBox.value;
-    if(!query) { searchResults.style.display = 'none'; return; }
+    const query = searchBox.value; if(!query) { searchResults.style.display = 'none'; return; }
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
-      .then(res => res.json())
-      .then(results => {
-        searchResults.innerHTML = '';
-        if(!results || results.length === 0) return;
+      .then(res => res.json()).then(results => {
+        searchResults.innerHTML = ''; if(!results || results.length === 0) return;
         results.slice(0, 5).forEach(r => {
-          const div = document.createElement('div');
-          div.className = 'searchItem';
-          div.textContent = r.display_name;
+          const div = document.createElement('div'); div.className = 'searchItem'; div.textContent = r.display_name;
           div.onclick = () => {
-            searchResults.style.display = 'none';
-            const lngLat = [parseFloat(r.lon), parseFloat(r.lat)];
-            const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
-            map.flyTo({ center: lngLat, zoom: 14 });
-            addPin(map, lngLat, true);
-            searchBox.value = '';
-            updateSearchPlaceholder();
+            searchResults.style.display = 'none'; const lngLat = [parseFloat(r.lon), parseFloat(r.lat)];
+            const map = currentStyle === 'streets' ? mapStreets : mapHybrid; map.flyTo({ center: lngLat, zoom: 14 });
+            addPin(map, lngLat, true); searchBox.value = ''; updateSearchPlaceholder();
           };
           searchResults.appendChild(div);
         });
@@ -412,34 +333,18 @@ searchBox.addEventListener('input', () => {
   }, 300);
 });
 
-document.addEventListener('click', e => { 
-  if(!searchResults.contains(e.target) && e.target !== searchBox) searchResults.style.display = 'none'; 
-});
+document.addEventListener('click', e => { if(!searchResults.contains(e.target) && e.target !== searchBox) searchResults.style.display = 'none'; });
 
 document.getElementById('downloadMap').onclick = () => {
-  const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
-  const mapCanvas = map.getCanvas();
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = mapCanvas.width;
-  tempCanvas.height = mapCanvas.height;
-  const ctx = tempCanvas.getContext('2d');
-  ctx.drawImage(mapCanvas, 0, 0);
+  const mapCanvas = (currentStyle === 'streets' ? mapStreets : mapHybrid).getCanvas();
+  const tempCanvas = document.createElement('canvas'); tempCanvas.width = mapCanvas.width; tempCanvas.height = mapCanvas.height;
+  const ctx = tempCanvas.getContext('2d'); ctx.drawImage(mapCanvas, 0, 0);
   const attribution = "MapLibre | © OpenStreetMap | © MapTiler | © openrouteservice.org";
-  const fontSize = 14;
-  ctx.font = `${fontSize}px Inter, sans-serif`;
-  const textWidth = ctx.measureText(attribution).width;
-  const padding = 10;
-  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.fillRect(tempCanvas.width - textWidth - (padding * 2), tempCanvas.height - fontSize - (padding * 2), textWidth + (padding * 2), fontSize + (padding * 2));
-  ctx.fillStyle = "#333";
-  ctx.fillText(attribution, tempCanvas.width - textWidth - padding, tempCanvas.height - padding);
+  ctx.font = `14px Inter, sans-serif`; const textWidth = ctx.measureText(attribution).width;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.7)"; ctx.fillRect(tempCanvas.width - textWidth - 20, tempCanvas.height - 34, textWidth + 20, 34);
+  ctx.fillStyle = "#333"; ctx.fillText(attribution, tempCanvas.width - textWidth - 10, tempCanvas.height - 10);
   tempCanvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `map-export-${Date.now()}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `map-${Date.now()}.png`; a.click();
   }, 'image/png');
 };
 </script>
