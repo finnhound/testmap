@@ -158,6 +158,11 @@ let userMarkerStreets = null, userMarkerHybrid = null;
 const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 
+    routingEnabled = false;
+localStorage.setItem('mapRouteEnabled', 'false');
+document.getElementById('toggleRoute').textContent = 'Enable Routing';
+clearRoute();
+    
     // Disable manual rotation/pitching on mobile to prevent accidental orientation changes
 if (isMobile) {
     [mapStreets, mapHybrid].forEach(m => {
@@ -443,6 +448,7 @@ document.getElementById('mode').onchange = () => { if (startMarker && endMarker)
 </script>
 </body>
 </html>
+
 
 
 
