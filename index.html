@@ -186,111 +186,143 @@ button:active { transform: scale(0.97); }
 
 /* MOBILE ONLY SCALING (PORTRAIT) */
 @media screen and (orientation: portrait) {
+    html, body { background: #f5f5f5; }
+    
     #map-streets, #map-hybrid { 
-        width: 45.45%; 
-        height: 45.45%; 
-        transform: scale(2.2); 
-        transform-origin: top left; 
+        width: 100%; 
+        height: 100%; 
+        transform: none; 
+        position: fixed;
     }
     
-    /* Mobile UI: Top Pill - TRUE PILL SHAPE */
+    /* Mobile UI: Top Pill - Proper scaling */
     #controls { 
-        flex-direction: row;
-        width: auto;
-        max-width: 90%;
-        padding: 8px 16px; 
-        transform: scale(1.4); 
-        transform-origin: top center; 
-        top: 15px; 
+        position: fixed;
+        flex-direction: column;
+        width: 280px;
+        padding: 12px 18px; 
+        top: 20px; 
         left: 50%;
+        transform: translateX(-50%);
         right: auto;
-        border-radius: 30px;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: center;
+        border-radius: 25px;
+        gap: 10px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     }
     
     #searchBox { 
-        width: 180px; 
-        font-size: 14px !important; 
-        padding: 6px 10px !important;
-        flex-shrink: 0;
+        width: 100%; 
+        font-size: 16px !important; 
+        padding: 12px 14px !important;
+        border-radius: 8px;
     }
     
     button, select { 
-        padding: 6px 12px !important; 
-        font-size: 13px !important;
-        white-space: nowrap;
+        width: 100%;
+        padding: 12px 16px !important; 
+        font-size: 15px !important;
+        border-radius: 8px;
+        font-weight: 500;
     }
-    
-    #toggleRoute { order: 1; }
-    #mode { order: 2; }
-    #resetRoute { order: 3; }
-    #searchBox { order: 0; width: 100%; }
 
-    /* BIGGER ROUTE INFO: Scaled and anchored left */
+    #searchResults {
+        position: fixed;
+        top: 180px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 280px;
+        max-height: 250px;
+    }
+
+    .searchItem {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    /* Route Info: Better mobile positioning */
     .route-info { 
-        top: 20px; 
-        left: 20px; 
-        transform: scale(1.5); 
-        transform-origin: top left;
+        position: fixed;
+        top: 240px; 
+        left: 50%;
+        transform: translateX(-50%);
         width: auto; 
-        max-width: 50%;
-        white-space: normal;
+        max-width: 85%;
+        white-space: nowrap;
+        padding: 14px 24px;
+        font-size: 16px;
     }
     
     #routeFromLocation {
+        position: fixed;
         top: auto;
-        bottom: 80px;
+        bottom: 100px;
         left: 50%;
         right: auto;
-        transform: translateX(-50%) scale(1.4);
-        transform-origin: center;
+        transform: translateX(-50%);
+        padding: 12px 20px;
+        font-size: 14px;
+        border-radius: 25px;
     }
 
+    /* Side buttons - properly positioned */
     #downloadMap { 
+        position: fixed;
         top: auto;
-        bottom: 180px; 
-        right: 20px; 
-        transform: scale(1.6); 
-        transform-origin: right center; 
+        bottom: 200px; 
+        right: 20px;
+        width: 52px;
+        height: 52px;
     }
     
     #gpsToggle { 
+        position: fixed;
         top: auto;
-        bottom: 120px; 
-        right: 20px; 
-        transform: scale(1.6); 
-        transform-origin: right center; 
+        bottom: 140px; 
+        right: 20px;
+        width: 52px;
+        height: 52px;
     }
-    #gpsToggle.active { transform: scale(1.6); }
     
     #hybridToggle { 
+        position: fixed;
         top: auto;
-        bottom: 180px; 
-        left: 20px; 
-        transform: scale(1.6); 
-        transform-origin: left center; 
+        bottom: 200px; 
+        left: 20px;
+        width: 52px;
+        height: 52px;
+    }
+    
+    #hybridToggle img {
+        width: 28px;
+        height: 28px;
+    }
+    
+    #downloadMap svg, #gpsToggle svg {
+        width: 28px;
+        height: 28px;
     }
     
     .maplibregl-ctrl-group { display: none !important; }
     
     .attribution-text { 
-        bottom: 15px; 
+        position: fixed;
+        bottom: 20px; 
         left: 50%; 
-        transform: translateX(-50%) scale(1.2); 
-        width: 80%; 
-        text-align: center; 
+        transform: translateX(-50%); 
+        width: 85%; 
+        text-align: center;
+        font-size: 11px;
     }
     
-    /* MapTiler Logo: Mobile Bottom-Left */
+    /* MapTiler Logo */
     .maptiler-logo { 
-        bottom: 60px; 
-        left: 15px; 
-        transform: scale(1.4); 
-        transform-origin: bottom left; 
+        position: fixed;
+        bottom: 55px; 
+        left: 20px;
     }
-    .maptiler-logo img { height: 15px; }
+    .maptiler-logo img { 
+        height: 18px; 
+    }
 }
 </style>
 </head>
@@ -345,7 +377,7 @@ const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c2047
 const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
 
 const isMobile = window.innerHeight > window.innerWidth;
-const pinSize = isMobile ? 56 : 40;
+const pinSize = isMobile ? 48 : 40;
 
 const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
@@ -395,7 +427,7 @@ if (!isMobile) {
     [mapStreets,mapHybrid].forEach(m=>{ m.addControl(new maplibregl.NavigationControl({showCompass:true, showZoom:true}),'top-left'); });
 }
 
-const arrowSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="#007aff" stroke="white" stroke-width="3"/><path d="M20 5L27 18H13L20 5Z" fill="#007aff" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>`;
+const arrowSVG = `<svg width="${pinSize}" height="${pinSize}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#007aff" stroke="white" stroke-width="3"/><path d="M20 7L25 16H15L20 7Z" fill="#007aff" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>`;
 const locationPinSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="3"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`;
 const searchPinSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="3"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 
@@ -692,7 +724,7 @@ function fetchRoute() {
         [mapStreets, mapHybrid].forEach(m => {
             if (m.getSource('route')) { m.removeLayer('route'); m.removeSource('route'); }
             m.addSource('route', { type: 'geojson', data: feat.geometry });
-            m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': isMobile ? 10 : 6 } });
+            m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#0074d9', 'line-width': isMobile ? 8 : 6 } });
         });
 
         const coords = feat.geometry.coordinates;
@@ -702,7 +734,7 @@ function fetchRoute() {
 
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         activeMap.fitBounds(bounds, {
-            padding: isMobile ? 150 : 80,
+            padding: isMobile ? 120 : 80,
             duration: 1000
         });
     }).catch(() => setLoading(false));
