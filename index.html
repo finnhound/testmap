@@ -136,6 +136,8 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 </a>
 
 <script>
+
+    
 const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjFjMzkyNDVlOGIyNjQxYjVhMDRhNWEwNjdlMTM4MDc0IiwiaCI6Im11cm11cjY0In0=";
 const MT_KEY = 'kUOJqqeRX1BMaXctsgK5';
 const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
@@ -158,6 +160,28 @@ let userMarkerStreets = null, userMarkerHybrid = null;
 const mapStreets = new maplibregl.Map({ container:'map-streets', style:STREETS_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 const mapHybrid = new maplibregl.Map({ container:'map-hybrid', style:HYBRID_URL, center: savedView?.center||[0,0], zoom: savedView?.zoom ?? 1, attributionControl:false, preserveDrawingBuffer:true });
 
+// LOCK VIEWPORT SIZE: Prevents UI from shifting when location mode is toggled
+const lockUI = () => {
+    const doc = document.documentElement;
+    doc.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+};
+window.addEventListener('resize', lockUI);
+lockUI();
+
+// Disable focus-zoom on buttons to prevent layout jumps
+document.querySelectorAll('button, input, select').forEach(el => {
+    el.addEventListener('focus', (e) => {
+        if (isMobile) e.preventDefault();
+    });
+});
+
+// Update the gpsToggle to prevent default "jump" behavior
+const originalGpsClick = document.getElementById('gpsToggle').onclick;
+document.getElementById('gpsToggle').onclick = async (e) => {
+    e.preventDefault(); // Stop browser from shifting focus/scrolling
+    if (originalGpsClick) await originalGpsClick(e);
+};
+    
     routingEnabled = false;
 localStorage.setItem('mapRouteEnabled', 'false');
 document.getElementById('toggleRoute').textContent = 'Enable Routing';
@@ -448,6 +472,7 @@ document.getElementById('mode').onchange = () => { if (startMarker && endMarker)
 </script>
 </body>
 </html>
+
 
 
 
