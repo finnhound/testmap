@@ -184,21 +184,38 @@ mapStreets.on('move', () => syncView(mapStreets, mapHybrid));
 mapHybrid.on('move', () => syncView(mapHybrid, mapStreets));
 
 // --- GPS TRACKING & ORBITAL LOCK ---
+const HEADING_OFFSET = -45; // Adjust this number if the offset changes
+
 async function handleOrientation(event) {
     let heading = null;
+
     if (event.webkitCompassHeading) {
+        // iOS
         heading = event.webkitCompassHeading;
     } else if (event.absolute === true && event.alpha !== null) {
+        // Android Absolute
         heading = (360 - event.alpha);
     } else if (event.alpha !== null) {
+        // Fallback
         heading = (360 - event.alpha);
     }
+
     if (heading === null) return;
-    if (userMarkerStreets) userMarkerStreets.setRotation(heading);
-    if (userMarkerHybrid) userMarkerHybrid.setRotation(heading);
+
+    // Apply the manual shift
+    let correctedHeading = (heading + HEADING_OFFSET + 360) % 360;
+
+    // Apply rotation to markers
+    if (userMarkerStreets) userMarkerStreets.setRotation(correctedHeading);
+    if (userMarkerHybrid) userMarkerHybrid.setRotation(correctedHeading);
+    
+    // Lock map bearing to corrected heading
     if (watchId !== null && currentCoords) {
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-        activeMap.jumpTo({ center: currentCoords, bearing: heading });
+        activeMap.jumpTo({ 
+            center: currentCoords, 
+            bearing: correctedHeading 
+        });
     }
 }
 
@@ -401,5 +418,6 @@ document.getElementById('hybridToggle').onclick = () => showHybrid(currentStyle 
 </script>
 </body>
 </html>
+
 
 
