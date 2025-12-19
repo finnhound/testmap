@@ -31,8 +31,25 @@ button, select, input { font:14px 'Inter', sans-serif; }
 .searchItem:last-child { border-bottom: none; }
 .searchItem:hover { background:#eee; }
 
-/* Desktop Route Info Base Style - Width set to auto to fit "Distance" text */
-.route-info { position:absolute; top:50px; left:50%; transform:translateX(-50%); background:white; padding:8px 14px; border:1px solid #333; font:14px 'Inter', sans-serif; z-index:25; border-radius:6px; opacity:0.9; pointer-events:none; white-space: nowrap; }
+/* --- PC ONLY ROUTE INFO (Top Middle, Scaled Up) --- */
+.route-info { 
+    position:absolute; 
+    top: 25px; /* Top of screen */
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: white; 
+    padding: 12px 20px; /* Scaled up padding */
+    border: 2px solid #333; /* Slightly thicker border */
+    font: bold 16px 'Inter', sans-serif; /* Scaled up font */
+    z-index: 25; 
+    border-radius: 8px; 
+    opacity: 0.95; 
+    pointer-events: none; 
+    white-space: nowrap; 
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 .loading { position:absolute; top:20px; left:50%; transform:translateX(-50%); background:yellow; padding:6px 12px; border-radius:4px; z-index:40; font-weight:bold; display:none; }
 
 .attribution-text { position:absolute; bottom:10px; right:10px; z-index:25; background:rgba(255,255,255,0.85); padding:6px 10px; font:11px 'Inter', sans-serif; border-radius:6px; border:1px solid #ccc; }
@@ -41,14 +58,16 @@ button, select, input { font:14px 'Inter', sans-serif; }
 
 .hint-text { position:absolute; top:240px; right:10px; z-index:20; background:rgba(255,255,255,0.95); padding:8px 12px; border:1px solid #ccc; border-radius:6px; font:12px 'Inter', sans-serif; max-width:200px; display:none; }
 
-/* MOBILE ONLY SCALING (PORTRAIT) */
+/* --- MOBILE ONLY SCALING (PORTRAIT) --- */
 @media screen and (orientation: portrait) {
+    /* MAP SCALING: Increased to 1.8x */
     #map-streets, #map-hybrid {
-        width: 62.5%; 
-        height: 62.5%;
-        transform: scale(1.6);
+        width: 55.56%; /* 100 / 1.8 */
+        height: 55.56%;
+        transform: scale(1.8);
         transform-origin: top left;
     }
+
     #controls { 
         width: 170px; 
         padding: 14px; 
@@ -78,17 +97,23 @@ button, select, input { font:14px 'Inter', sans-serif; }
     }
     .maptiler-logo { bottom: 80px; left: 20px; transform: scale(1.4); }
     
-    /* MOBILE ROUTE INFO SCALING */
+    /* MOBILE ROUTE INFO: Fixed, Top of screen, Scaled */
     #route-info { 
-        transform: scale(1.25) translateX(-50%); /* Slightly lower scale to fit width */
-        bottom: 130px; 
-        top: auto; 
+        /* Positioned at top, clearing the search box */
+        top: 130px; 
+        bottom: auto; 
         left: 50%; 
         right: auto;
+        /* Center and Scale */
+        transform: translateX(-50%) scale(1.15); 
+        
+        /* Ensure it fits content */
         width: auto;
-        min-width: 250px; /* Wider to accommodate "Distance" text */
+        min-width: 260px;
+        max-width: 90%;
         text-align: center;
-        padding: 12px;
+        padding: 14px;
+        white-space: normal; /* Allow wrap if screen is very tiny */
     }
 }
 </style>
@@ -121,20 +146,7 @@ button, select, input { font:14px 'Inter', sans-serif; }
   <img src="https://raw.githubusercontent.com/finnhound/cartohound/7b3c8e14c393450a26d9d562c99016afad43d83a/stack%20(1).svg" alt="Hybrid Map Icon">
 </div>
 
-<div id="route-info" style="
-    position: absolute;
-    top: 136px;
-    right: 70px;
-    background: rgba(255,255,255,0.85);
-    padding: 8px 10px;
-    border: 1px solid #333;
-    border-radius: 6px;
-    font: 14px 'Inter', sans-serif;
-    z-index: 25;
-    pointer-events: none;
-    display: none;
-    white-space: nowrap;
-"></div>
+<div id="route-info" class="route-info"></div>
 
 <div id="hint-text" class="hint-text">
   <strong>Click on route</strong> to add waypoints<br>
@@ -309,11 +321,10 @@ function fetchRoute(){
   .then(data => {
     if(!data.features || !data.features[0]) return;
     const feature = data.features[0]; const routeGeoJSON = feature.geometry;
-    // Updated text to "Distance" and "Time"
+    
     routeInfo.innerHTML = `Distance: ${(feature.properties.summary.distance / 1000).toFixed(2)} km | Time: ${Math.round(feature.properties.summary.duration / 60)} min`;
     routeInfo.style.display = 'block'; hintText.style.display = 'block';
     
-    // Thicker line on mobile
     const lineW = isMobile ? 10 : 5;
 
     [mapStreets, mapHybrid].forEach(m => {
@@ -329,7 +340,6 @@ function fetchRoute(){
 function addWaypoint(lngLat) {
   if (!routingEnabled || !startMarker || !endMarker) return;
   const el = document.createElement('div');
-  // Pin waypoint for mobile, dot for PC
   if(isMobile) {
       el.innerHTML = defaultPinSVG;
   } else {
