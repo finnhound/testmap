@@ -54,42 +54,62 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 
 /* MOBILE ONLY SCALING (PORTRAIT) */
 @media screen and (orientation: portrait) {
-    /* Keeping your intentional map scale */
+    /* Fix: Anchor map to top-left and remove any container gaps */
     #map-streets, #map-hybrid { 
-        width: 55.56%; 
-        height: 55.56%; 
-        transform: scale(2.2); 
-        transform-origin: top left; 
+        width: 55.56vw; /* Using viewport width to ensure exact sizing */
+        height: 55.56vh; 
+        transform: scale(1.8); /* Adjusted scale to prevent overflow/gaps */
+        transform-origin: top left;
+        position: absolute;
+        top: 0;
+        left: 0;
     }
     
-    /* Anchoring controls to the top right to stop "floating" */
+    /* Fix: Anchor controls to the top-right corner exactly */
     #controls { 
         width: 180px; 
         padding: 15px; 
         transform: scale(1.4); 
-        transform-origin: top right; 
-        top: 20px; 
-        right: 20px; 
+        transform-origin: top right; /* Ensures it sticks to the corner */
+        top: 10px; 
+        right: 10px; 
+        margin: 0;
     }
     
     #searchBox { width: 150px; font-size: 16px !important; }
 
-    /* Positioning side buttons relative to the edge */
-    #downloadMap { top: 350px; right: 20px; transform: scale(1.6); transform-origin: right center; }
-    #gpsToggle { top: 430px; right: 20px; transform: scale(1.6); transform-origin: right center; }
-    #hybridToggle { top: 510px; right: 20px; transform: scale(1.6); transform-origin: right center; }
+    /* Fix: Anchor side buttons to the right edge */
+    #downloadMap { top: 320px; right: 15px; transform: scale(1.6); transform-origin: right center; }
+    #gpsToggle { top: 400px; right: 15px; transform: scale(1.6); transform-origin: right center; }
+    #hybridToggle { top: 480px; right: 15px; transform: scale(1.6); transform-origin: right center; }
     
-    /* RE-ENABLED: REMOVE MAPLIBRE ZOOM CONTROLS ON MOBILE */
+    /* REMOVE MAPLIBRE ZOOM CONTROLS ON MOBILE */
     .maplibregl-ctrl-group { display: none !important; }
     
+    /* Fix: Attribution centered at the very bottom */
     .attribution-text { 
-        bottom: 20px; 
-        left: 50%; 
-        right: auto; 
-        transform: translateX(-50%) scale(1.2); 
-        width: 80%; 
+        bottom: 10px; 
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        transform: scale(1.1); 
+        width: 90%; 
         text-align: center; 
+        box-sizing: border-box;
     }
+    
+    .maptiler-logo { bottom: 60px; left: 15px; transform: scale(1.4); transform-origin: bottom left; }
+
+    /* Fix: Route info anchored top-left but clear of the notch */
+    #route-info { 
+        top: 15px; 
+        left: 15px; 
+        transform: scale(1.2); 
+        transform-origin: top left;
+        max-width: 55%;
+        white-space: normal;
+    }
+}
     
     .maptiler-logo { bottom: 80px; left: 20px; transform: scale(1.5); transform-origin: bottom left; }
 
@@ -501,6 +521,7 @@ document.getElementById('mode').onchange = () => { if (startMarker && endMarker)
 </script>
 </body>
 </html>
+
 
 
 
