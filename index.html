@@ -683,185 +683,185 @@ function handleOrientation(event) {
 }
 
 document.getElementById('gpsToggle').onclick = async () => {
+
+    /* ================= MOBILE ================= */
     if (isMobile) {
-        // MOBILE: Toggle location lock mode
+
         const blocker = document.getElementById('pan-blocker');
-        if (watchId !== null && locationMode) {
-            // Disable location mode
+
+        /* ---- TURN OFF GPS ---- */
+        if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
             window.removeEventListener('deviceorientation', handleOrientation);
+
             watchId = null;
             currentCoords = null;
             locationMode = false;
+            lastHeading = null;
+
             blocker.style.display = 'none';
             document.getElementById('gpsToggle').classList.remove('active');
-            if (userMarkerStreets) { 
-                userMarkerStreets.remove(); 
-                userMarkerHybrid.remove(); 
+
+            if (userMarkerStreets) {
+                userMarkerStreets.remove();
+                userMarkerHybrid.remove();
+                userMarkerStreets = userMarkerHybrid = null;
             }
-            userMarkerStreets = userMarkerHybrid = null;
+
             const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
             activeMap.setBearing(0);
-            lastHeading = null;
-        } else {
-            // Enable location mode
-            setLoading(true);
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const res = await DeviceOrientationEvent.requestPermission();
-                if (res !== 'granted') { setLoading(false); return; }
-            }
-            document.getElementById('gpsToggle').classList.add('active');
-            locationMode = true;
-            blocker.style.display = 'block';
-            window.addEventListener('deviceorientation', handleOrientation, true);
-            
-watchId = getBestAvailableLocation(
-    pos => {
-        setLoading(false);
-        currentCoords = [pos.coords.longitude, pos.coords.latitude];
 
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-
-        if (!userMarkerStreets) {
-            const el1 = document.createElement('div'); el1.innerHTML = arrowSVG;
-            const el2 = document.createElement('div'); el2.innerHTML = arrowSVG;
-
-            userMarkerStreets = new maplibregl.Marker({
-                element: el1,
-                rotationAlignment: 'map'
-            }).setLngLat(currentCoords).addTo(mapStreets);
-
-            userMarkerHybrid = new maplibregl.Marker({
-                element: el2,
-                rotationAlignment: 'map'
-            }).setLngLat(currentCoords).addTo(mapHybrid);
-
-            activeMap.flyTo({ center: currentCoords, zoom: 17, duration: 1500 });
-        } else {
-            userMarkerStreets.setLngLat(currentCoords);
-            userMarkerHybrid.setLngLat(currentCoords);
+            return;
         }
-    },
-    err => {
-        setLoading(false);
-        alert("Location unavailable. Enable location services.");
-    },
-    true
-);
-        
-        }
-    } else {
-        // PC: Show location pin + route from location
-        if (watchId !== null) {
-            // Clear location
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-            currentCoords = null;
-            if (locationPinStreets) {
-                locationPinStreets.remove();
-                locationPinHybrid.remove();
-                locationPinStreets = locationPinHybrid = null;
-            }
-            document.getElementById('gpsToggle').classList.remove('active');
-        } else {
-            // Get location once
-            setLoading(true);
-          getBestAvailableLocation(
-    pos => {
-        setLoading(false);
-        currentCoords = [pos.coords.longitude, pos.coords.latitude];
 
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        /* ---- TURN ON GPS ---- */
+        setLoading(true);
+
+        if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+            const res = await DeviceOrientationEvent.requestPermission();
+            if (res !== 'granted') {
+                setLoading(false);
+                return;
+            }
+        }
+
+        document.getElementById('gpsToggle').classList.add('active');
+        blocker.style.display = 'block';
+        locationMode = true;
+
+        window.addEventListener('deviceorientation', handleOrientation, true);
+
+        watchId = getBestAvailableLocation(
+            pos => {
+                setLoading(false);
+
+                currentCoords = [
+                    pos.coords.longitude,
+                    pos.coords.latitude
+                ];
+
+                const activeMap = currentStyle === 'streets'
+                    ? mapStreets
+                    : mapHybrid;
+
+                if (!userMarkerStreets) {
+                    const el1 = document.createElement('div');
+                    const el2 = document.createElement('div');
+                    el1.innerHTML = arrowSVG;
+                    el2.innerHTML = arrowSVG;
+
+                    userMarkerStreets = new maplibregl.Marker({
+                        element: el1,
+                        rotationAlignment: 'map'
+                    })
+                        .setLngLat(currentCoords)
+                        .addTo(mapStreets);
+
+                    userMarkerHybrid = new maplibregl.Marker({
+                        element: el2,
+                        rotationAlignment: 'map'
+                    })
+                        .setLngLat(currentCoords)
+                        .addTo(mapHybrid);
+
+                    activeMap.flyTo({
+                        center: currentCoords,
+                        zoom: 17,
+                        duration: 1200
+                    });
+                } else {
+                    userMarkerStreets.setLngLat(currentCoords);
+                    userMarkerHybrid.setLngLat(currentCoords);
+                }
+            },
+            err => {
+                setLoading(false);
+                alert('Location unavailable.');
+                console.error(err);
+            },
+            true
+        );
+
+        return;
+    }
+
+    /* ================= DESKTOP ================= */
+
+    /* ---- TURN OFF GPS ---- */
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        currentCoords = null;
 
         if (locationPinStreets) {
             locationPinStreets.remove();
             locationPinHybrid.remove();
+            locationPinStreets = locationPinHybrid = null;
         }
 
-        const el1 = document.createElement('div');
-        el1.style.width = '40px';
-        el1.style.height = '40px';
-        el1.innerHTML = locationPinSVG;
-
-        const el2 = document.createElement('div');
-        el2.style.width = '40px';
-        el2.style.height = '40px';
-        el2.innerHTML = locationPinSVG;
-
-        locationPinStreets = new maplibregl.Marker({ element: el1 })
-            .setLngLat(currentCoords).addTo(mapStreets);
-
-        locationPinHybrid = new maplibregl.Marker({ element: el2 })
-            .setLngLat(currentCoords).addTo(mapHybrid);
-
-        document.getElementById('gpsToggle').classList.add('active');
-
-        activeMap.flyTo({
-            center: currentCoords,
-            zoom: Math.max(activeMap.getZoom(), 14),
-            duration: 1500
-        });
-    },
-    err => {
-        setLoading(false);
-        alert("Location unavailable. Please allow location access.");
+        document.getElementById('gpsToggle').classList.remove('active');
+        updateRouteFromLocationButton();
+        return;
     }
-);
-                setLoading(false);
-                currentCoords = [pos.coords.longitude, pos.coords.latitude];
-                const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-                
-                // Remove existing location pins
-                if (locationPinStreets) {
-                    locationPinStreets.remove();
-                    locationPinHybrid.remove();
-                }
-                
-                // Create location pins
-                const el1 = document.createElement('div');
-                el1.style.width = '40px';
-                el1.style.height = '40px';
-                el1.innerHTML = locationPinSVG;
-                
-                const el2 = document.createElement('div');
-                el2.style.width = '40px';
-                el2.style.height = '40px';
-                el2.innerHTML = locationPinSVG;
-                
-                locationPinStreets = new maplibregl.Marker({element: el1}).setLngLat(currentCoords).addTo(mapStreets);
-                locationPinHybrid = new maplibregl.Marker({element: el2}).setLngLat(currentCoords).addTo(mapHybrid);
-                
-                document.getElementById('gpsToggle').classList.add('active');
-                
-                // Pan to location
-                activeMap.flyTo({center: currentCoords, zoom: Math.max(activeMap.getZoom(), 14), duration: 1500});
-                
-                // If routing enabled, override start point
-                if (routingEnabled) {
-                    if (startMarker) startMarker.remove();
-                    addPin(currentCoords, false);
-                }
-                
-                // Watch for updates
-                watchId = navigator.geolocation.watchPosition(pos => {
-                    currentCoords = [pos.coords.longitude, pos.coords.latitude];
-                    if (locationPinStreets) {
-                        locationPinStreets.setLngLat(currentCoords);
-                        locationPinHybrid.setLngLat(currentCoords);
-                    }
-                    if (routingEnabled && startMarker) {
-                        routePoints[0] = currentCoords;
-                        startMarker.setLngLat(currentCoords);
-                        if (endMarker) fetchRoute();
-                    }
-                }, null, { enableHighAccuracy: true, maximumAge: 5000 });
-            }, err => {
-                setLoading(false);
-                alert('Unable to get location: ' + err.message);
-            }, { enableHighAccuracy: true });
-        }
-    }
+
+    /* ---- TURN ON GPS ---- */
+    setLoading(true);
+
+    watchId = getBestAvailableLocation(
+        pos => {
+            setLoading(false);
+
+            currentCoords = [
+                pos.coords.longitude,
+                pos.coords.latitude
+            ];
+
+            const activeMap = currentStyle === 'streets'
+                ? mapStreets
+                : mapHybrid;
+
+            if (locationPinStreets) {
+                locationPinStreets.remove();
+                locationPinHybrid.remove();
+            }
+
+            const el1 = document.createElement('div');
+            el1.style.width = '40px';
+            el1.style.height = '40px';
+            el1.innerHTML = locationPinSVG;
+
+            const el2 = document.createElement('div');
+            el2.style.width = '40px';
+            el2.style.height = '40px';
+            el2.innerHTML = locationPinSVG;
+
+            locationPinStreets = new maplibregl.Marker({ element: el1 })
+                .setLngLat(currentCoords)
+                .addTo(mapStreets);
+
+            locationPinHybrid = new maplibregl.Marker({ element: el2 })
+                .setLngLat(currentCoords)
+                .addTo(mapHybrid);
+
+            document.getElementById('gpsToggle').classList.add('active');
+
+            activeMap.flyTo({
+                center: currentCoords,
+                zoom: Math.max(activeMap.getZoom(), 14),
+                duration: 1200
+            });
+
+            updateRouteFromLocationButton();
+        },
+        err => {
+            setLoading(false);
+            alert('Unable to get location.');
+            console.error(err);
+        },
+        true
+    );
 };
+
 
 // --- ROUTING ENGINE ---
 function updateSearchPlaceholder() {
