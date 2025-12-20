@@ -911,15 +911,28 @@ function addWaypoint(lngLat) {
 
 [mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
     if (!routingEnabled) return;
+
+    // FIX: Create a bounding box around the click point.
+    // This is required for 'queryRenderedFeatures' to work on scaled CSS maps.
+    const bbox = [
+        [e.point.x - 10, e.point.y - 10],
+        [e.point.x + 10, e.point.y + 10]
+    ];
+
     if (startMarker && endMarker && m.getLayer('route')) {
-        // Check both visible route and hit area on mobile
         const layersToCheck = isMobile ? ['route', 'route-hitarea'] : ['route'];
-        const features = m.queryRenderedFeatures(e.point, { layers: layersToCheck });
+        
+        // Search the box instead of just the point
+        const features = m.queryRenderedFeatures(bbox, { layers: layersToCheck });
+        
         if (features.length > 0) { 
+            // We hit the route! Add a waypoint.
             addWaypoint([e.lngLat.lng, e.lngLat.lat]); 
             return; 
         }
     }
+    
+    // If we didn't hit the route, add a normal start/end pin
     addPin([e.lngLat.lng, e.lngLat.lat]);
 }));
 
@@ -1095,6 +1108,7 @@ updateRouteFromLocationButton();
 </script>
 </body>
 </html>
+
 
 
 
