@@ -675,27 +675,15 @@ document.getElementById('gpsToggle').onclick = async () => {
                     userMarkerHybrid.setLngLat(currentCoords);
                     activeMap.panTo(currentCoords, {duration: 500});
                 }
-}, err => {
-    // 🔁 fallback to approximate tracking
-    navigator.geolocation.clearWatch(watchId);
-    watchId = navigator.geolocation.watchPosition(
-        pos => {
-            setLoading(false);
-            currentCoords = [pos.coords.longitude, pos.coords.latitude];
-            userMarkerStreets?.setLngLat(currentCoords);
-            userMarkerHybrid?.setLngLat(currentCoords);
-        },
-        e => {
-            setLoading(false);
-            console.error('GPS error:', e);
-        },
-        {
-            enableHighAccuracy: false,
-            maximumAge: 600000,
-            timeout: 10000
+            }, err => {
+                setLoading(false);
+                console.error('GPS error:', err);
+            }, { 
+                enableHighAccuracy: true, 
+                maximumAge: 0, 
+                timeout: 10000 
+            });
         }
-    );
-},
     } else {
         // PC: Show location pin + route from location
         if (watchId !== null) {
@@ -712,68 +700,10 @@ document.getElementById('gpsToggle').onclick = async () => {
         } else {
             // Get location once
             setLoading(true);
-navigator.geolocation.getCurrentPosition(
-    pos => {
-        setLoading(false);
-        currentCoords = [pos.coords.longitude, pos.coords.latitude];
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-
-        if (locationPinStreets) {
-            locationPinStreets.remove();
-            locationPinHybrid.remove();
-        }
-
-        const el1 = document.createElement('div');
-        el1.style.width = '40px';
-        el1.style.height = '40px';
-        el1.innerHTML = locationPinSVG;
-
-        const el2 = document.createElement('div');
-        el2.style.width = '40px';
-        el2.style.height = '40px';
-        el2.innerHTML = locationPinSVG;
-
-        locationPinStreets = new maplibregl.Marker({ element: el1 })
-            .setLngLat(currentCoords).addTo(mapStreets);
-        locationPinHybrid = new maplibregl.Marker({ element: el2 })
-            .setLngLat(currentCoords).addTo(mapHybrid);
-
-        document.getElementById('gpsToggle').classList.add('active');
-        activeMap.flyTo({ center: currentCoords, zoom: 14, duration: 1500 });
-
-        watchId = navigator.geolocation.watchPosition(pos => {
-            currentCoords = [pos.coords.longitude, pos.coords.latitude];
-            locationPinStreets?.setLngLat(currentCoords);
-            locationPinHybrid?.setLngLat(currentCoords);
-        }, null, { enableHighAccuracy: false });
-    },
-    () => {
-        // 🔁 FALLBACK: approximate location
-        navigator.geolocation.getCurrentPosition(
-            pos => {
+            navigator.geolocation.getCurrentPosition(pos => {
                 setLoading(false);
                 currentCoords = [pos.coords.longitude, pos.coords.latitude];
                 const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-                activeMap.flyTo({ center: currentCoords, zoom: 12, duration: 1200 });
-            },
-            err => {
-                setLoading(false);
-                alert('Unable to get location: ' + err.message);
-            },
-            {
-                enableHighAccuracy: false,
-                maximumAge: 600000,
-                timeout: 10000
-            }
-        );
-    },
-    {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-    }
-);
-
                 
                 // Remove existing location pins
                 if (locationPinStreets) {
@@ -819,6 +749,11 @@ navigator.geolocation.getCurrentPosition(
                         if (endMarker) fetchRoute();
                     }
                 }, null, { enableHighAccuracy: true, maximumAge: 5000 });
+            }, err => {
+                setLoading(false);
+                alert('Unable to get location: ' + err.message);
+            }, { enableHighAccuracy: true });
+        }
     }
 };
 
@@ -1250,7 +1185,6 @@ updateRouteFromLocationButton();
 </script>
 </body>
 </html>
-
 
 
 
