@@ -730,60 +730,58 @@ function clearRoute() {
 }
 
 function fetchRoute() {
-    if (routePoints.length < 2) return;
+    // Only fetch if we have at least a start and an end
+    if (routePoints.length < 2 || !routePoints[0] || !routePoints[routePoints.length - 1]) return;
+    
     setLoading(true);
+    
     fetch(`https://api.openrouteservice.org/v2/directions/${document.getElementById('mode').value}/geojson`, {
-        method: 'POST', 
-        headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 
+            "Authorization": ORS_KEY, 
+            "Content-Type": "application/json" 
+        },
         body: JSON.stringify({ coordinates: routePoints })
-    }).then(res => res.json()).then(data => {
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Routing failed");
+        return res.json();
+    })
+    .then(data => {
         setLoading(false);
-        if (!data.features?.[0]) return;
+        if (!data.features || data.features.length === 0) return;
+        
         const feat = data.features[0];
         
-        document.getElementById('route-info').innerHTML = `Distance: ${(feat.properties.summary.distance / 1000).toFixed(2)} km | Time: ${Math.round(feat.properties.summary.duration / 60)} min`;
+        // Update Info Box
+        const dist = (feat.properties.summary.distance / 1000).toFixed(1);
+        const time = Math.round(feat.properties.summary.duration / 60);
+        document.getElementById('route-info').innerHTML = `<b>${dist} km</b> | ${time} min`;
         document.getElementById('route-info').style.display = 'block';
 
+        // Draw line on both maps
         [mapStreets, mapHybrid].forEach(m => {
-            if (m.getSource('route')) { m.removeLayer('route'); m.removeSource('route'); }
+            // Clean up old route safely
+            if (m.getLayer('route')) m.removeLayer('route');
+            if (m.getSource('route')) m.removeSource('route');
+
             m.addSource('route', { type: 'geojson', data: feat.geometry });
-            
-            // Thinner visible line on mobile
-            m.addLayer({ 
-                id: 'route', 
-                type: 'line', 
-                source: 'route', 
+            m.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: { 
                     'line-color': '#0074d9', 
-                    'line-width': isMobile ? 5 : 6 
-                } 
+                    'line-width': isMobile ? 8 : 5 // Thicker for mobile visibility
+                }
             });
-            
-            // Invisible wider hit area for mobile
-            if (isMobile) {
-                m.addLayer({ 
-                    id: 'route-hitarea', 
-                    type: 'line', 
-                    source: 'route', 
-                    paint: { 
-                        'line-color': 'transparent', 
-                        'line-width': 20 
-                    } 
-                });
-            }
         });
-
-        const coords = feat.geometry.coordinates;
-        const bounds = coords.reduce((acc, coord) => {
-            return acc.extend(coord);
-        }, new maplibregl.LngLatBounds(coords[0], coords[0]));
-
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-        activeMap.fitBounds(bounds, {
-            padding: isMobile ? 120 : 80,
-            duration: 1000
-        });
-    }).catch(() => setLoading(false));
+    })
+    .catch(err => {
+        console.error("Fetch error:", err);
+        setLoading(false);
+    });
 }
 
 function addPin(lngLat, isSearch = false) {
@@ -847,62 +845,47 @@ function addPin(lngLat, isSearch = false) {
 
 function addWaypoint(lngLat) {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+    
+    // Create the waypoint visual
     const el = document.createElement('div');
-    el.style.cursor = 'move';
-    
-    // Critical for mobile drag
-    if (isMobile) {
-        el.style.touchAction = 'none';
-        el.style.userSelect = 'none';
-        el.style.webkitUserSelect = 'none';
-        el.style.width = '32px'; 
-        el.style.height = '32px';
-        el.style.background = 'rgba(139, 138, 235, 0.9)'; 
-        el.style.border = '3px solid white';
-    } else {
-        el.style.width = '20px'; 
-        el.style.height = '20px';
-        el.style.background = 'rgba(139, 138, 235, 0.85)'; 
-        el.style.border = '2px solid white';
-    }
+    el.style.width = '20px';
+    el.style.height = '20px';
+    el.style.background = '#fff';
+    el.style.border = '3px solid #0074d9';
     el.style.borderRadius = '50%';
-    el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-    
-    const wp = new maplibregl.Marker({ 
-        element: el, 
-        draggable: true,
-        anchor: 'center'
-    }).setLngLat(lngLat).addTo(activeMap);
-    
-    routePoints.splice(routePoints.length - 1, 0, lngLat);
-    waypointMarkers.push(wp);
-    
-    wp.on('dragend', () => {
-        const idx = waypointMarkers.indexOf(wp);
-        routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat];
+    el.style.cursor = 'pointer';
+
+    const m = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat(lngLat)
+        .addTo(activeMap);
+
+    // Insert waypoint into the array BEFORE the end point
+    const insertIndex = routePoints.length - 1;
+    routePoints.splice(insertIndex, 0, lngLat);
+    waypointMarkers.push(m);
+
+    // Refresh route
+    fetchRoute();
+
+    // Interaction: Drag to move
+    m.on('dragend', () => {
+        const newPos = [m.getLngLat().lng, m.getLngLat().lat];
+        // Find this marker's current index in our tracking array
+        const idx = waypointMarkers.indexOf(m) + 1; // +1 because index 0 is startMarker
+        routePoints[idx] = newPos;
         fetchRoute();
     });
-    
-    // Better mobile tap handling
-    if (isMobile) {
-        wp.on('drag', () => {
-            el.style.opacity = '0.7';
-        });
-        wp.on('dragend', () => {
-            el.style.opacity = '1';
-        });
-    }
-    
-    wp.getElement().addEventListener('click', (e) => { 
-        e.stopPropagation(); 
-        const idx = waypointMarkers.indexOf(wp);
-        if (idx > -1) {
-            waypointMarkers.splice(idx, 1);
-            routePoints.splice(idx + 1, 1);
-            wp.remove();
-            fetchRoute();
-        }
-    });
+
+    // Interaction: Click to remove
+    el.onclick = (e) => {
+        e.stopPropagation();
+        const idx = waypointMarkers.indexOf(m) + 1;
+        routePoints.splice(idx, 1);
+        waypointMarkers.splice(waypointMarkers.indexOf(m), 1);
+        m.remove();
+        fetchRoute();
+    };
+}
     
     fetchRoute();
 }
@@ -1093,4 +1076,5 @@ updateRouteFromLocationButton();
 </script>
 </body>
 </html>
+
 
