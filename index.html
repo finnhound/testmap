@@ -584,6 +584,62 @@ mapHybrid.on('moveend', saveView);
 
 let lastHeading = null;
 
+function getBestAvailableLocation(success, failure, watch = false) {
+    const highAccuracyOptions = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+    };
+
+    const lowAccuracyOptions = {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000
+    };
+
+    const tryLowAccuracy = () => {
+        if (watch) {
+            return navigator.geolocation.watchPosition(
+                success,
+                err => failure(err),
+                lowAccuracyOptions
+            );
+        } else {
+            navigator.geolocation.getCurrentPosition(
+                success,
+                err => failure(err),
+                lowAccuracyOptions
+            );
+        }
+    };
+
+    if (watch) {
+        return navigator.geolocation.watchPosition(
+            success,
+            err => {
+                if (err.code === err.PERMISSION_DENIED) {
+                    failure(err);
+                } else {
+                    tryLowAccuracy();
+                }
+            },
+            highAccuracyOptions
+        );
+    } else {
+        navigator.geolocation.getCurrentPosition(
+            success,
+            err => {
+                if (err.code === err.PERMISSION_DENIED) {
+                    failure(err);
+                } else {
+                    tryLowAccuracy();
+                }
+            },
+            highAccuracyOptions
+        );
+    }
+}
+    
 function handleOrientation(event) {
     let heading = null;
 
@@ -659,7 +715,39 @@ document.getElementById('gpsToggle').onclick = async () => {
             blocker.style.display = 'block';
             window.addEventListener('deviceorientation', handleOrientation, true);
             
-            watchId = navigator.geolocation.watchPosition(pos => {
+watchId = getBestAvailableLocation(
+    pos => {
+        setLoading(false);
+        currentCoords = [pos.coords.longitude, pos.coords.latitude];
+
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+
+        if (!userMarkerStreets) {
+            const el1 = document.createElement('div'); el1.innerHTML = arrowSVG;
+            const el2 = document.createElement('div'); el2.innerHTML = arrowSVG;
+
+            userMarkerStreets = new maplibregl.Marker({
+                element: el1,
+                rotationAlignment: 'map'
+            }).setLngLat(currentCoords).addTo(mapStreets);
+
+            userMarkerHybrid = new maplibregl.Marker({
+                element: el2,
+                rotationAlignment: 'map'
+            }).setLngLat(currentCoords).addTo(mapHybrid);
+
+            activeMap.flyTo({ center: currentCoords, zoom: 17, duration: 1500 });
+        } else {
+            userMarkerStreets.setLngLat(currentCoords);
+            userMarkerHybrid.setLngLat(currentCoords);
+        }
+    },
+    err => {
+        setLoading(false);
+        alert("Location unavailable. Enable location services.");
+    },
+    true
+);
                 setLoading(false);
                 currentCoords = [pos.coords.longitude, pos.coords.latitude];
                 const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
@@ -700,7 +788,47 @@ document.getElementById('gpsToggle').onclick = async () => {
         } else {
             // Get location once
             setLoading(true);
-            navigator.geolocation.getCurrentPosition(pos => {
+          getBestAvailableLocation(
+    pos => {
+        setLoading(false);
+        currentCoords = [pos.coords.longitude, pos.coords.latitude];
+
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+
+        if (locationPinStreets) {
+            locationPinStreets.remove();
+            locationPinHybrid.remove();
+        }
+
+        const el1 = document.createElement('div');
+        el1.style.width = '40px';
+        el1.style.height = '40px';
+        el1.innerHTML = locationPinSVG;
+
+        const el2 = document.createElement('div');
+        el2.style.width = '40px';
+        el2.style.height = '40px';
+        el2.innerHTML = locationPinSVG;
+
+        locationPinStreets = new maplibregl.Marker({ element: el1 })
+            .setLngLat(currentCoords).addTo(mapStreets);
+
+        locationPinHybrid = new maplibregl.Marker({ element: el2 })
+            .setLngLat(currentCoords).addTo(mapHybrid);
+
+        document.getElementById('gpsToggle').classList.add('active');
+
+        activeMap.flyTo({
+            center: currentCoords,
+            zoom: Math.max(activeMap.getZoom(), 14),
+            duration: 1500
+        });
+    },
+    err => {
+        setLoading(false);
+        alert("Location unavailable. Please allow location access.");
+    }
+);
                 setLoading(false);
                 currentCoords = [pos.coords.longitude, pos.coords.latitude];
                 const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
