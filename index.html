@@ -170,6 +170,11 @@ button:active { transform: scale(0.97); }
 #gpsToggle { top:75px; }
 #hybridToggle { top:130px; }
 
+#hybridToggle img {
+    width: 24px;
+    height: 24px;
+}
+
 #gpsToggle.active { background: #007aff; }
 #gpsToggle.active svg { stroke: white; }
 
@@ -229,6 +234,11 @@ button:active { transform: scale(0.97); }
         border-radius: 6px;
         font-weight: 500;
     }
+    
+    /* Remove active scale animation on mobile */
+    button:active, select:active { 
+        transform: none !important;
+    }
 
     #searchResults {
         position: fixed;
@@ -260,17 +270,9 @@ button:active { transform: scale(0.97); }
         font-size: 14px;
     }
     
+    /* Hide route from location button on mobile */
     #routeFromLocation {
-        position: fixed;
-        top: auto;
-        bottom: 460px;
-        left: 50%;
-        right: auto;
-        transform: translateX(-50%) scale(1.5);
-        transform-origin: center;
-        padding: 8px 16px;
-        font-size: 12px;
-        border-radius: 20px;
+        display: none !important;
     }
 
     /* Side buttons - properly positioned and scaled */
@@ -312,6 +314,15 @@ button:active { transform: scale(0.97); }
         transform-origin: right center;
         width: 44px;
         height: 44px;
+    }
+    
+    /* Remove hover/active scale animations on mobile */
+    #downloadMap:hover, #gpsToggle:hover, #hybridToggle:hover {
+        transform: scale(1.8) !important;
+    }
+    
+    #downloadMap:active, #gpsToggle:active, #hybridToggle:active {
+        transform: scale(1.8) !important;
     }
     
     #hybridToggle img {
@@ -457,6 +468,22 @@ document.querySelectorAll('button, input, select').forEach(el => {
 routingEnabled = false;
 localStorage.setItem('mapRouteEnabled', 'false');
 document.getElementById('toggleRoute').textContent = 'Enable Routing';
+
+function clearRoute() {
+    waypointMarkers.forEach(wp => wp.remove()); 
+    waypointMarkers = [];
+    if (startMarker) { startMarker.remove(); startMarker = null; }
+    if (endMarker) { endMarker.remove(); endMarker = null; }
+    routePoints = [];
+    document.getElementById('route-info').style.display = 'none';
+    [mapStreets, mapHybrid].forEach(m => {
+        if (m.getLayer('route-hitarea')) m.removeLayer('route-hitarea');
+        if (m.getLayer('route')) m.removeLayer('route');
+        if (m.getSource('route')) m.removeSource('route');
+    });
+    updateSearchPlaceholder();
+}
+
 clearRoute();
 
 // Disable manual rotation/pitching on mobile
@@ -714,19 +741,13 @@ function updateSearchPlaceholder() {
     else sb.placeholder = "Search";
 }
 
-function clearRoute() {
-    waypointMarkers.forEach(wp => wp.remove()); 
-    waypointMarkers = [];
-    if (startMarker) { startMarker.remove(); startMarker = null; }
-    if (endMarker) { endMarker.remove(); endMarker = null; }
-    routePoints = [];
-    document.getElementById('route-info').style.display = 'none';
-    [mapStreets, mapHybrid].forEach(m => {
-        if (m.getLayer('route-hitarea')) m.removeLayer('route-hitarea');
-        if (m.getLayer('route')) m.removeLayer('route');
-        if (m.getSource('route')) m.removeSource('route');
-    });
-    updateSearchPlaceholder();
+function formatTime(minutes) {
+    if (minutes > 59) {
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return `${hours}h ${mins}min`;
+    }
+    return `${Math.round(minutes)} min`;
 }
 
 function fetchRoute() {
@@ -753,46 +774,58 @@ function fetchRoute() {
         
         const feat = data.features[0];
         
-        // Update Info Box
+        // Update Info Box with formatted time
         const dist = (feat.properties.summary.distance / 1000).toFixed(1);
-        const time = Math.round(feat.properties.summary.duration / 60);
-        document.getElementById('route-info').innerHTML = `<b>${dist} km</b> | ${time} min`;
+        const timeMinutes = feat.properties.summary.duration / 60;
+        const timeStr = formatTime(timeMinutes);
+        document.getElementById('route-info').innerHTML = `<b>${dist} km</b> | ${timeStr}`;
         document.getElementById('route-info').style.display = 'block';
 
         // Draw line on both maps
         [mapStreets, mapHybrid].forEach(m => {
             // Clean up old route safely
-if (m.getLayer('route-hitarea')) m.removeLayer('route-hitarea');
-if (m.getLayer('route')) m.removeLayer('route');
-if (m.getSource('route')) m.removeSource('route');
+            if (m.getLayer('route-hitarea')) m.removeLayer('route-hitarea');
+            if (m.getLayer('route')) m.removeLayer('route');
+            if (m.getSource('route')) m.removeSource('route');
 
-m.addSource('route', { type: 'geojson', data: feat.geometry });
+            m.addSource('route', { type: 'geojson', data: feat.geometry });
 
-/* Visible route */
-m.addLayer({
-    id: 'route',
-    type: 'line',
-    source: 'route',
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: { 
-        'line-color': '#0074d9', 
-        'line-width': isMobile ? 8 : 5
-    }
-});
+            /* Visible route */
+            m.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 
+                    'line-color': '#0074d9', 
+                    'line-width': isMobile ? 8 : 5
+                }
+            });
 
-/* Invisible hit area for mobile taps */
-m.addLayer({
-    id: 'route-hitarea',
-    type: 'line',
-    source: 'route',
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-        'line-color': '#000',
-        'line-opacity': 0,
-        'line-width': isMobile ? 30 : 10
-    }
-});
-
+            /* Invisible hit area for mobile taps */
+            m.addLayer({
+                id: 'route-hitarea',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#000',
+                    'line-opacity': 0,
+                    'line-width': isMobile ? 30 : 10
+                }
+            });
+        });
+        
+        // Pan to fit route with padding
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        const coordinates = feat.geometry.coordinates;
+        const bounds = coordinates.reduce((bounds, coord) => {
+            return bounds.extend(coord);
+        }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+        
+        activeMap.fitBounds(bounds, {
+            padding: isMobile ? 80 : 60,
+            duration: 1000
         });
     })
     .catch(err => {
@@ -864,7 +897,7 @@ function addWaypoint(lngLat) {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
     
-    // UI Styling: Pinned targets for mobile vs desktop
+    // UI Styling: Smaller and semi-transparent on mobile
     el.style.cursor = 'move';
     el.style.borderRadius = '50%';
     el.style.boxShadow = '0 3px 10px rgba(0,0,0,0.4)';
@@ -873,9 +906,10 @@ function addWaypoint(lngLat) {
     if (isMobile) {
         // CRITICAL: Prevents the map from scrolling/panning while you drag the dot
         el.style.touchAction = 'none'; 
-        el.style.width = '34px'; 
-        el.style.height = '34px';
-        el.style.background = '#8b8aeb'; 
+        el.style.width = '24px'; 
+        el.style.height = '24px';
+        el.style.background = '#8b8aeb';
+        el.style.opacity = '0.7';
     } else {
         el.style.width = '22px'; 
         el.style.height = '22px';
@@ -893,13 +927,15 @@ function addWaypoint(lngLat) {
     routePoints.splice(insertIndex, 0, lngLat);
     waypointMarkers.push(wp);
 
-    // DRAG LOGIC: Robust index calculation
-    wp.on('dragstart', () => {
-        if (isMobile) el.style.opacity = '0.6';
-    });
+    // DRAG LOGIC: Move waypoint to finger position on mobile
+    if (isMobile) {
+        wp.on('drag', () => {
+            el.style.opacity = '0.5';
+        });
+    }
 
     wp.on('dragend', () => {
-        if (isMobile) el.style.opacity = '1';
+        if (isMobile) el.style.opacity = '0.7';
         
         // Always calculate index fresh to prevent "disappearing route"
         const idx = waypointMarkers.indexOf(wp);
@@ -1050,6 +1086,7 @@ document.getElementById('toggleRoute').onclick = function() {
     this.textContent = routingEnabled ? 'Disable Routing' : 'Enable Routing';
     if (!routingEnabled) clearRoute();
     updateSearchPlaceholder();
+    updateRouteFromLocationButton();
 };
 
 document.getElementById('resetRoute').onclick = clearRoute;
@@ -1098,34 +1135,17 @@ document.getElementById('routeFromLocation').onclick = async () => {
     }
 };
 
-// Show route from location button when GPS is active and routing is enabled
+// Show route from location button when GPS is active and routing is enabled (PC only)
 function updateRouteFromLocationButton() {
     const btn = document.getElementById('routeFromLocation');
-    if (routingEnabled && (currentCoords || watchId !== null)) {
+    if (!isMobile && routingEnabled && (currentCoords || watchId !== null)) {
         btn.style.display = 'block';
     } else {
         btn.style.display = 'none';
     }
 }
 
-// Call this when routing or GPS state changes
-const originalToggleRoute = document.getElementById('toggleRoute').onclick;
-document.getElementById('toggleRoute').onclick = function() {
-    originalToggleRoute.call(this);
-    updateRouteFromLocationButton();
-};
-
-const originalGpsToggle = document.getElementById('gpsToggle').onclick;
-document.getElementById('gpsToggle').onclick = async function(e) {
-    await originalGpsToggle.call(this, e);
-    updateRouteFromLocationButton();
-};
-
 updateRouteFromLocationButton();
 </script>
 </body>
 </html>
-
-
-
-
