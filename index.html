@@ -578,21 +578,21 @@ mapHybrid.on('moveend', saveView);
 
 let lastHeading = null;
 
-async function handleOrientation(event) {
+function handleOrientation(event) {
     let heading = null;
 
-    // iOS Safari (most reliable)
+    // iOS (true compass heading)
     if (event.webkitCompassHeading !== undefined) {
-        heading = event.webkitCompassHeading; // already degrees from North
+        heading = event.webkitCompassHeading;
     }
-    // Android / others
+    // Android fallback
     else if (event.alpha !== null) {
         heading = 360 - event.alpha;
     }
 
     if (heading === null) return;
 
-    // Smooth rotation
+    // Smooth heading
     if (lastHeading !== null) {
         let diff = heading - lastHeading;
         if (diff > 180) diff -= 360;
@@ -601,19 +601,20 @@ async function handleOrientation(event) {
     }
     lastHeading = heading;
 
-    // ✅ THIS is the correct MapLibre bearing
-    const bearing = (heading + 360) % 360;
+    
+      /* MapLibre marker rotation is +90° off compass north */
+    const correctedHeading = (heading + 90) % 360;
 
     if (userMarkerStreets) {
-        userMarkerStreets.setRotation(bearing);
-        userMarkerHybrid.setRotation(bearing);
+        userMarkerStreets.setRotation(correctedHeading);
+        userMarkerHybrid.setRotation(correctedHeading);
     }
 
     if (locationMode && currentCoords && isMobile) {
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         activeMap.easeTo({
             center: currentCoords,
-            bearing: bearing,
+            bearing: correctedHeading,
             duration: 100
         });
     }
@@ -1173,5 +1174,6 @@ updateRouteFromLocationButton();
 </script>
 </body>
 </html>
+
 
 
