@@ -1110,12 +1110,17 @@ document.getElementById('downloadMap').onclick = async () => {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const originalZoom = activeMap.getZoom();
     const originalCenter = activeMap.getCenter();
+    const originalBearing = activeMap.getBearing();
     
-    // Set to zoom level 18 to ensure tiles are loaded
     setLoading(true);
-    activeMap.setZoom(18);
     
-    // Wait for all tiles to load
+    // Calculate the bounds of the current view
+    const bounds = activeMap.getBounds();
+    
+    // Temporarily zoom to level 17 to load high-detail tiles
+    activeMap.setZoom(17);
+    
+    // Wait for tiles to load at zoom 17
     await new Promise((resolve) => {
         if (activeMap.loaded()) {
             resolve();
@@ -1124,10 +1129,17 @@ document.getElementById('downloadMap').onclick = async () => {
         }
     });
     
-    // Wait for render to complete at zoom 14
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Now restore the ORIGINAL view (this keeps the high-res tiles in memory)
+    activeMap.jumpTo({
+        center: originalCenter,
+        zoom: originalZoom,
+        bearing: originalBearing
+    });
     
-    // CAPTURE THE CANVAS NOW (while still at zoom 14)
+    // Wait for the original view to render with the high-res tiles
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Capture the canvas at original zoom but with zoom 17 tiles
     const mapCanvas = activeMap.getCanvas();
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = mapCanvas.width; 
@@ -1141,12 +1153,6 @@ document.getElementById('downloadMap').onclick = async () => {
     ctx.fillRect(tempCanvas.width - textWidth - 20, tempCanvas.height - 35, textWidth + 20, 35);
     ctx.fillStyle = "#333";
     ctx.fillText(attr, tempCanvas.width - textWidth - 10, tempCanvas.height - 12);
-    
-    // NOW restore original view
-    activeMap.jumpTo({
-        center: originalCenter,
-        zoom: originalZoom
-    });
     
     // Download the captured image
     const a = document.createElement('a'); 
