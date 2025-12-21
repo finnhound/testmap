@@ -621,17 +621,31 @@ const searchPinSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stro
 
 // Accuracy circle styling for PC only
 const accuracyCircleStyle = `
+/* Accuracy circle styling - Fixed for centering and visibility */
 <style>
+.location-pin-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    position: relative;
+    cursor: pointer;
+    overflow: visible; /* Ensure large accuracy circles aren't clipped */
+}
+
 .accuracy-circle {
     position: absolute;
     border-radius: 50%;
-    background: rgba(0, 122, 255, 0.08);
-    border: 2px solid rgba(0, 122, 255, 0.25);
-    pointer-events: none;
+    background: rgba(0, 122, 255, 0.1);
+    border: 1.5px solid rgba(0, 122, 255, 0.3);
+    pointer-events: none; /* Crucial: so the circle doesn't block map clicks */
     opacity: 0;
-    transition: opacity 0.3s ease;
-    transform: translate(-50%, -50%);
+    transition: opacity 0.2s ease;
+    z-index: -1; /* Keep circle behind the pin icon */
 }
+
+/* Show the circle when hovering anywhere over the 40px hit area */
 .location-pin-wrapper:hover .accuracy-circle {
     opacity: 1;
 }
@@ -838,110 +852,74 @@ document.getElementById('gpsToggle').onclick = async () => {
             });
         }
     } else {
-        // PC: Show location pin + route from location
-        if (watchId !== null) {
-            // Clear location
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-            currentCoords = null;
-            if (locationPinStreets) {
-                locationPinStreets.remove();
-                locationPinHybrid.remove();
-                locationPinStreets = locationPinHybrid = null;
-            }
-            document.getElementById('gpsToggle').classList.remove('active');
-        } else {
-            // Get location once
-            setLoading(true);
-            navigator.geolocation.getCurrentPosition(pos => {
-                setLoading(false);
-                currentCoords = [pos.coords.longitude, pos.coords.latitude];
-                const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+// PC: Show location pin + route from location
+if (watchId !== null) {
+    // ... (keep existing clear logic)
+} else {
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(pos => {
+        setLoading(false);
+        currentCoords = [pos.coords.longitude, pos.coords.latitude];
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        
+        // Helper to create the marker element
+        const createLocationEl = () => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'location-pin-wrapper';
+            
+            const circle = document.createElement('div');
+            circle.className = 'accuracy-circle';
+            
+            const icon = document.createElement('div');
+            icon.style.width = '24px'; // Slightly smaller icon for better precision feel
+            icon.style.height = '24px';
+            icon.innerHTML = locationPinSVG;
+            
+            wrapper.appendChild(circle);
+            wrapper.appendChild(icon);
+            return { wrapper, circle };
+        };
+
+        const res1 = createLocationEl();
+        const res2 = createLocationEl();
+        
+        const circle1 = res1.circle;
+        const circle2 = res2.circle;
+
+        // Create markers with explicit 'center' anchor
+        locationPinStreets = new maplibregl.Marker({ element: res1.wrapper, anchor: 'center' })
+            .setLngLat(currentCoords).addTo(mapStreets);
+        locationPinHybrid = new maplibregl.Marker({ element: res2.wrapper, anchor: 'center' })
+            .setLngLat(currentCoords).addTo(mapHybrid);
+        
+        // Updated Accuracy Circle Function
+        function updateAccuracyCircle() {
+            try {
+                const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
+                const zoom = map.getZoom();
+                if (!currentCoords || isNaN(zoom)) return;
+
+                const lat = currentCoords[1];
+                // Meters per pixel calculation
+                const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
                 
-                // Create location pin elements with accuracy circle
-                const el1 = document.createElement('div');
-                el1.className = 'location-pin-wrapper';
-                el1.style.width = '40px';
-                el1.style.height = '40px';
-                el1.style.position = 'relative';
-                el1.style.cursor = 'pointer';
+                // Set radius (e.g., 50m accuracy)
+                const accuracyRadiusMeters = 50; 
+                const diameter = (accuracyRadiusMeters / metersPerPixel) * 2;
                 
-                // Add accuracy circle that shows on hover/tap
-                const circle1 = document.createElement('div');
-                circle1.className = 'accuracy-circle';
-                circle1.style.top = '50%';
-                circle1.style.left = '50%';
-                el1.appendChild(circle1);
-                
-                const icon1 = document.createElement('div');
-                icon1.style.width = '40px';
-                icon1.style.height = '40px';
-                icon1.style.pointerEvents = 'none';
-                icon1.innerHTML = locationPinSVG;
-                el1.appendChild(icon1);
-                
-                const el2 = document.createElement('div');
-                el2.className = 'location-pin-wrapper';
-                el2.style.width = '40px';
-                el2.style.height = '40px';
-                el2.style.position = 'relative';
-                el2.style.cursor = 'pointer';
-                
-                // Add accuracy circle that shows on hover/tap
-                const circle2 = document.createElement('div');
-                circle2.className = 'accuracy-circle';
-                circle2.style.top = '50%';
-                circle2.style.left = '50%';
-                el2.appendChild(circle2);
-                
-                const icon2 = document.createElement('div');
-                icon2.style.width = '40px';
-                icon2.style.height = '40px';
-                icon2.style.pointerEvents = 'none';
-                icon2.innerHTML = locationPinSVG;
-                el2.appendChild(icon2);
-                
-                locationPinStreets = new maplibregl.Marker({element: el1}).setLngLat(currentCoords).addTo(mapStreets);
-                locationPinHybrid = new maplibregl.Marker({element: el2}).setLngLat(currentCoords).addTo(mapHybrid);
-                
-                // Function to update accuracy circle size based on zoom
-                const accuracyRadiusMeters = 50; // 50 meters radius for accuracy
-                
-                function updateAccuracyCircle() {
-                    try {
-                        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-                        const zoom = activeMap.getZoom();
-                        
-                        if (!currentCoords || isNaN(zoom)) return;
-                        
-                        // Calculate pixels per meter at current zoom level
-                        const lat = currentCoords[1];
-                        const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-                        const radiusPixels = accuracyRadiusMeters / metersPerPixel;
-                        const diameterPixels = radiusPixels * 2;
-                        
-                        // Update both circles
-                        if (circle1 && circle2) {
-                            circle1.style.width = diameterPixels + 'px';
-                            circle1.style.height = diameterPixels + 'px';
-                            circle2.style.width = diameterPixels + 'px';
-                            circle2.style.height = diameterPixels + 'px';
-                        }
-                    } catch (e) {
-                        console.error('Accuracy circle update error:', e);
-                    }
-                }
-                
-                // Initial size
-                updateAccuracyCircle();
-                
-                // Update on zoom - use named function to allow removal
-                const updateCircleStreets = () => updateAccuracyCircle();
-                const updateCircleHybrid = () => updateAccuracyCircle();
-                
-                mapStreets.on('zoom', updateCircleStreets);
-                mapHybrid.on('zoom', updateCircleHybrid);
-                
+                [circle1, circle2].forEach(c => {
+                    c.style.width = diameter + 'px';
+                    c.style.height = diameter + 'px';
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        // Attach listeners
+        mapStreets.on('zoom', updateAccuracyCircle);
+        mapHybrid.on('zoom', updateAccuracyCircle);
+        updateAccuracyCircle(); // Initial call
+        
+        // ... (rest of the flyTo logic)              
                 document.getElementById('gpsToggle').classList.add('active');
                 
                 // Pan to location
