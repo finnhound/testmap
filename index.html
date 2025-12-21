@@ -1115,8 +1115,9 @@ document.getElementById('downloadMap').onclick = async () => {
     
     setLoading(true);
     
-    // If current zoom is already 15 or higher, just capture the current map
-    if (originalZoom >= 15) {
+    // If current zoom is 15+ OR very zoomed out (< 13), just capture current view
+    // Below zoom 13, buildings stop rendering so no point in high-res tiles
+    if (originalZoom >= 15 || originalZoom < 13) {
         // Wait a moment for any pending renders
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -1150,7 +1151,7 @@ document.getElementById('downloadMap').onclick = async () => {
         return;
     }
     
-    // Otherwise, build high-res version at zoom 15
+    // For zoom levels 13-14, build high-res version at zoom 15
     const targetZoom = 15;
     const zoomDifference = targetZoom - originalZoom;
     const scaleFactor = Math.pow(2, zoomDifference);
