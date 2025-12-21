@@ -1087,22 +1087,23 @@ function addPin(lngLat, isSearch = false) {
     
     if (type === 'start') { 
         if(startMarker) startMarker.remove(); 
-        startMarker = m; 
-        routePoints[0] = lngLat;
+        startMarker = m;
         shouldPanToRoute = true;
-        if(endMarker) fetchRoute();
+        if(endMarker) {
+            rebuildRoutePoints();
+            fetchRoute();
+        }
     } else { 
         if(endMarker) endMarker.remove(); 
-        endMarker = m; 
-        routePoints[routePoints.length > 1 ? routePoints.length-1 : 1] = lngLat;
+        endMarker = m;
         shouldPanToRoute = true;
-        if(startMarker) fetchRoute();
+        if(startMarker) {
+            rebuildRoutePoints();
+            fetchRoute();
+        }
     }
     
     m.on('dragend', () => {
-        const pos = [m.getLngLat().lng, m.getLngLat().lat];
-        if (m === startMarker) routePoints[0] = pos; 
-        else routePoints[routePoints.length-1] = pos;
         rebuildRoutePoints();
         shouldPanToRoute = true;
         fetchRoute();
