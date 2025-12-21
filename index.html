@@ -293,19 +293,19 @@ button:active { transform: scale(0.97); }
         position: absolute;
     }
     
-    /* Mobile UI: Top Right Corner Controls */
+   /* Mobile UI: Top Right Corner Controls */
     #controls { 
         position: fixed;
         flex-direction: column;
-        width: 220px;
-        padding: 14px 18px; 
+        width: 180px; /* Slimmed width for mobile scaling */
+        padding: 12px 15px; 
         top: 15px; 
         right: 15px;
         left: auto;
         transform: scale(2.0);
         transform-origin: top right;
-        border-radius: 20px;
-        gap: 10px;
+        border-radius: 15px;
+        gap: 8px;
         box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     }
     
@@ -329,14 +329,15 @@ button:active { transform: scale(0.97); }
         transform: none !important;
     }
 
-    #searchResults {
-        position: fixed;
-        top: 38px;
-        right: 10px;
-        left: auto;
+#searchResults {
+        position: absolute;
+        top: 45px; /* Aligned with scaled search box */
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-height: 150px;
         transform: none;
-        width: 200px;
-        max-height: 180px;
+        z-index: 1000;
     }
 
     .searchItem {
@@ -344,21 +345,20 @@ button:active { transform: scale(0.97); }
         font-size: 13px;
     }
 
-    /* Route Info: Top Left Corner */
+   /* Route Info: Positioned BELOW the controls on mobile */
     .route-info { 
         position: fixed;
-        top: 20px; 
-        left: 20px;
-        right: auto;
+        top: 250px; /* Offset to appear below the scaled controls */
+        right: 15px;
+        left: auto;
         transform: scale(2.0);
-        transform-origin: top left;
+        transform-origin: top right;
         width: auto; 
-        max-width: 45%;
+        max-width: 160px;
         white-space: normal;
-        font-size: 16px;
-        padding: 14px 22px;
-        border-radius: 30px;
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.45);
+        text-align: center;
+        padding: 10px 15px;
+        border-radius: 20px;
     }
     
     /* Hide route from location button on mobile */
@@ -448,6 +448,26 @@ button:active { transform: scale(0.97); }
     }
     .maptiler-logo img { 
         height: 15px; 
+    }
+}
+
+    /* If the user turns the phone sideways, force the body to stay vertical */
+@media screen and (orientation: landscape) and (max-width: 950px) {
+    body {
+        width: 100vh;
+        height: 100vw;
+        transform: rotate(-90deg);
+        transform-origin: top left;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        overflow: hidden;
+    }
+    
+    /* Adjust map size to fill the inverted screen */
+    .map {
+        width: 100vh;
+        height: 100vw;
     }
 }
 </style>
@@ -760,7 +780,7 @@ function handleOrientation(event) {
 
     if (heading === null) return;
 
-    // Smooth heading
+// Smooth heading
     if (lastHeading !== null) {
         let diff = heading - lastHeading;
         if (diff > 180) diff -= 360;
@@ -769,9 +789,8 @@ function handleOrientation(event) {
     }
     lastHeading = heading;
 
-    
-      /* MapLibre marker rotation is +90° off compass north */
-    const correctedHeading = (heading + 90) % 360;
+    // FIX: Remove the +90 offset so the arrow points North (0°) correctly
+    const correctedHeading = heading % 360;
 
     if (userMarkerStreets) {
         userMarkerStreets.setRotation(correctedHeading);
@@ -1498,40 +1517,29 @@ document.getElementById('downloadMap').onclick = async () => {
 
 document.getElementById('toggleRoute').onclick = function() {
     routingEnabled = !routingEnabled;
+    const mode = document.getElementById('mode');
+    const reset = document.getElementById('resetRoute');
     
     if (routingEnabled) {
         this.classList.add('active');
-        if (!isMobile) {
-            // Trigger reflow to ensure smooth animation
-            const mode = document.getElementById('mode');
-            const reset = document.getElementById('resetRoute');
-            
-            mode.style.display = 'block';
-            reset.style.display = 'block';
-            
-            // Force reflow
-            void mode.offsetWidth;
-            void reset.offsetWidth;
-            
-            requestAnimationFrame(() => {
-                mode.classList.add('visible');
-                reset.classList.add('visible');
-            });
-        }
+        // GUI now works on both PC and Mobile
+        mode.style.display = 'block';
+        reset.style.display = 'block';
+        
+        void mode.offsetWidth; // Trigger reflow
+        requestAnimationFrame(() => {
+            mode.classList.add('visible');
+            reset.classList.add('visible');
+        });
     } else {
         this.classList.remove('active');
-        if (!isMobile) {
-            const mode = document.getElementById('mode');
-            const reset = document.getElementById('resetRoute');
-            
-            mode.classList.remove('visible');
-            reset.classList.remove('visible');
-            
-            setTimeout(() => {
-                mode.style.display = 'none';
-                reset.style.display = 'none';
-            }, 350);
-        }
+        mode.classList.remove('visible');
+        reset.classList.remove('visible');
+        
+        setTimeout(() => {
+            mode.style.display = 'none';
+            reset.style.display = 'none';
+        }, 350);
         clearRoute();
     }
     
