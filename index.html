@@ -148,7 +148,7 @@ button:active { transform: scale(0.97); }
 }
     
 /* PC Side Buttons - LARGER */
-#downloadMap, #gpsToggle, #hybridToggle { 
+#downloadMap, #gpsToggle, #hybridToggle, #toggleRoute { 
     position:absolute; 
     right:20px; 
     z-index:20; 
@@ -164,15 +164,29 @@ button:active { transform: scale(0.97); }
     transition: all 0.2s;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
-#downloadMap:hover, #gpsToggle:hover, #hybridToggle:hover { 
+#downloadMap:hover, #gpsToggle:hover, #hybridToggle:hover, #toggleRoute:hover { 
     transform: scale(1.05); 
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-#downloadMap:active, #gpsToggle:active, #hybridToggle:active { transform: scale(0.95); }
+#downloadMap:active, #gpsToggle:active, #hybridToggle:active, #toggleRoute:active { transform: scale(0.95); }
 
-#downloadMap { top:20px; }
+#toggleRoute { top:20px; }
 #gpsToggle { top:75px; }
-#hybridToggle { top:130px; }
+#downloadMap { top:130px; }
+#hybridToggle { top:185px; }
+
+#toggleRoute.active {
+    background: #007aff;
+}
+
+#toggleRoute svg {
+    width: 24px;
+    height: 24px;
+}
+
+#toggleRoute.active svg {
+    stroke: white;
+}
 
 #hybridToggle img {
     width: 24px;
@@ -384,17 +398,24 @@ button:active { transform: scale(0.97); }
 <div id="controls">
   <input id="searchBox" type="text" placeholder="Search"/>
   <div id="searchResults"></div>
-  <button id="toggleRoute">Enable Routing</button>
-  <select id="mode">
-    <option value="driving-car">Car</option>
-    <option value="foot-walking">Walking</option>
-    <option value="cycling-regular">Cycling</option>
+  <select id="mode" style="display:none;">
+    <option value="driving-car">🚗 Car</option>
+    <option value="foot-walking">🚶 Walk</option>
+    <option value="cycling-regular">🚴 Bike</option>
   </select>
-  <button id="resetRoute">Reset Route</button>
+  <button id="resetRoute" style="display:none;">Reset</button>
 </div>
 
 <div id="downloadMap" title="Download Map">
   <svg viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>
+</div>
+
+<div id="toggleRoute" title="Toggle Routing">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="19" r="3"></circle>
+    <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path>
+    <circle cx="18" cy="5" r="3"></circle>
+  </svg>
 </div>
 
 <div id="gpsToggle" title="GPS Location">
@@ -480,7 +501,16 @@ document.querySelectorAll('button, input, select').forEach(el => {
 
 routingEnabled = false;
 localStorage.setItem('mapRouteEnabled', 'false');
-document.getElementById('toggleRoute').textContent = 'Enable Routing';
+
+// PC-specific: Setup sliding controls
+if (!isMobile) {
+    const controls = document.getElementById('controls');
+    controls.style.right = '90px';
+    controls.style.left = 'auto';
+    controls.style.transform = 'none';
+    controls.style.transition = 'width 0.3s ease';
+    controls.style.width = 'auto';
+}
 
 function clearRoute() {
     waypointMarkers.forEach(wp => wp.remove()); 
@@ -1242,8 +1272,22 @@ document.getElementById('downloadMap').onclick = async () => {
 
 document.getElementById('toggleRoute').onclick = function() {
     routingEnabled = !routingEnabled;
-    this.textContent = routingEnabled ? 'Disable Routing' : 'Enable Routing';
-    if (!routingEnabled) clearRoute();
+    
+    if (routingEnabled) {
+        this.classList.add('active');
+        if (!isMobile) {
+            document.getElementById('mode').style.display = 'block';
+            document.getElementById('resetRoute').style.display = 'block';
+        }
+    } else {
+        this.classList.remove('active');
+        if (!isMobile) {
+            document.getElementById('mode').style.display = 'none';
+            document.getElementById('resetRoute').style.display = 'none';
+        }
+        clearRoute();
+    }
+    
     updateSearchPlaceholder();
     updateRouteFromLocationButton();
 };
