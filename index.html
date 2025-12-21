@@ -302,103 +302,112 @@ button:active { transform: scale(0.97); }
     }
 
 /* ===============================
-       ROUTE INFO — TOP LEFT (CENTERED PILL)
-       =============================== */
-    .route-info {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        right: auto;
-        transform: none;
-        
-        /* Typography - Bigger & Bolder */
-        font-size: 34px !important;
-        font-weight: 900;
-        color: white;
-        
-        /* Perfect Centering Logic */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        
-        /* Pill Shape */
-        padding: 0 40px;
-        height: 90px; /* Fixed height for symmetry */
-        width: auto;
-        min-width: 280px;
-        border-radius: 50px;
-        
-        /* Restored Purple Gradient */
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        z-index: 110;
-        white-space: nowrap;
-        opacity: 1;
-    }
-
-    /* ===============================
-       SEARCH GUI — TOP RIGHT (UNIFORM)
+       UNIFORM HUGE UI — TOP RIGHT
        =============================== */
     #controls {
         position: fixed;
         top: 20px;
         right: 20px;
-        left: auto;
-        width: 450px; /* Fixed width for uniform stack */
-        max-width: 60vw;
+        left: auto; 
+        
+        /* Fixed width ensures all children (dropdown/button) match */
+        width: 450px; 
+        max-width: 65vw; 
         
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 15px; /* Consistent spacing between elements */
         padding: 20px;
-        border-radius: 28px;
+        border-radius: 24px;
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
-        box-shadow: 0 15px 45px rgba(0,0,0,0.4);
         z-index: 100;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.4);
     }
 
     #searchBox {
-        width: 100%;
-        height: 85px; /* Massive for touch */
+        width: 100%; /* Spans full width of #controls */
+        height: 85px; /* Massive height */
         font-size: 32px !important;
         padding: 0 25px;
-        border-radius: 18px;
-        border: 2px solid #eee;
-        box-sizing: border-box; /* Forces padding inside width */
+        border-radius: 16px;
+        border: 2px solid #ddd;
+        box-sizing: border-box; /* Crucial for uniformity */
     }
 
-    /* DROPDOWNS & BUTTONS MATCH SEARCH WIDTH */
+    /* DROPDOWN & RESET BUTTON UNIFORMITY */
     #mode, 
     #resetRoute {
-        width: 100% !important;
-        height: 80px !important;
+        width: 100% !important; /* Forces same width as search bar */
+        height: 75px !important; /* Slightly shorter than search for visual hierarchy */
         font-size: 28px !important;
         font-weight: bold;
-        border-radius: 18px;
-        margin: 0;
+        border-radius: 16px;
+        margin: 0; /* Reset margins */
         padding: 0 20px;
         box-sizing: border-box;
-        display: none; /* Controlled by visible class */
+        display: none; /* Controlled by .visible in JS */
     }
 
+    /* Ensure display:block doesn't break the width when visible */
     #mode.visible, 
     #resetRoute.visible {
         display: block !important;
     }
 
     #searchResults {
-        top: 115px;
+        top: 115px; /* Adjusted for taller search box */
         width: 100%;
-        border-radius: 18px;
+        border-radius: 16px;
     }
 
     .searchItem {
         padding: 25px;
         font-size: 28px;
     }
-}
+
+  To move the Route Info pill back to the bottom middle, center the text perfectly, and maintain the massive, uniform search GUI in the top right, replace your mobile CSS and JavaScript logic with the blocks below.
+
+1. The CSS Fix
+Replace the .route-info block within your @media screen and (orientation: portrait) section with this:
+
+CSS
+
+    /* ===============================
+       ROUTE INFO — BOTTOM MIDDLE (CENTERED)
+       =============================== */
+    .route-info {
+        position: fixed;
+        bottom: 50px;       /* Fixed at the bottom */
+        left: 50%;          /* Move to horizontal center */
+        transform: translateX(-50%); /* Offset for perfect center */
+        
+        /* Typography - High Visibility */
+        font-size: 34px !important;
+        font-weight: 900;
+        color: white;
+        
+        /* Centering Text inside the Pill */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        
+        /* Pill Styling */
+        padding: 0 40px;
+        height: 95px;       /* Thick, touch-friendly pill */
+        width: auto;
+        min-width: 300px;   /* Large enough for clarity */
+        max-width: 90vw;    /* Responsive cap */
+        border-radius: 60px;
+        
+        /* Purple Gradient */
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        z-index: 150;       /* Above everything */
+        white-space: nowrap;
+        opacity: 1;
+    }
     /* ===============================
        BOTTOM BUTTON BAR — BOTTOM RIGHT MOBILE!!!
        =============================== */
