@@ -79,7 +79,7 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
 
 #searchResults { 
     position:absolute; 
-    top:50px; 
+    top:56px; /* Match search box height */
     left:0; 
     background:white; 
     border:1px solid #ddd; 
@@ -87,17 +87,17 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
     overflow-y:auto; 
     width:100%; 
     z-index:100; 
-    border-radius:8px; 
+    border-radius:12px; /* Match search box radius */
     display:none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .searchItem {
-    padding: 16px 20px; /* Much larger padding */
+    padding: 14px 18px; /* Appropriately scaled padding */
     cursor: pointer;
     border-bottom: 1px solid #f0f0f0;
     transition: background-color 0.15s;
-    font-size: 16px; /* Larger font for search results */
+    font-size: 15px; /* Scaled font for search results */
 }
 .searchItem:last-child { border-bottom: none; }
 .searchItem:hover { background: linear-gradient(90deg, #f0f4ff, #f8f4ff); color: #007aff; }
@@ -302,7 +302,7 @@ button:active { transform: scale(0.97); }
     }
 
     /* ===============================
-       SEARCH / ROUTING GUI — TOP RIGHT (MUCH LARGER)
+       SEARCH / ROUTING GUI — TOP RIGHT (THINNER & SCALED)
        =============================== */
     #controls {
         position: fixed;
@@ -311,31 +311,31 @@ button:active { transform: scale(0.97); }
         left: auto;
         transform: none;
         flex-direction: column;
-        width: 420px; /* Much larger width */
-        padding: 32px 36px; /* Much larger padding */
-        gap: 24px; /* Much larger gap */
-        border-radius: 28px; /* Larger border radius */
+        width: 360px; /* Thinner width */
+        padding: 24px 28px; /* Reduced padding */
+        gap: 20px; /* Reduced gap */
+        border-radius: 24px; /* Slightly smaller border radius */
         z-index: 30;
         box-shadow: 0 12px 40px rgba(0,0,0,0.4);
     }
 
     #searchBox {
         width: 100%;
-        font-size: 26px; /* Much larger font */
-        padding: 24px 28px; /* Much larger padding */
-        border-radius: 16px; /* Larger border radius */
+        font-size: 22px; /* Smaller font */
+        padding: 16px 20px; /* Thinner padding */
+        border-radius: 12px; /* Smaller border radius */
         height: auto;
-        min-height: 60px; /* Minimum height for better touch */
+        min-height: 50px; /* Reduced height */
     }
 
     #mode,
     #resetRoute {
         width: 100%;
-        font-size: 24px; /* Much larger font */
-        padding: 24px 28px; /* Much larger padding */
-        border-radius: 16px; /* Larger border radius */
+        font-size: 20px; /* Smaller font */
+        padding: 16px 20px; /* Thinner padding */
+        border-radius: 12px; /* Smaller border radius */
         height: auto;
-        min-height: 60px; /* Minimum height for better touch */
+        min-height: 50px; /* Reduced height */
         transform: none !important; /* keep animations working */
     }
 
@@ -359,38 +359,60 @@ button:active { transform: scale(0.97); }
     }
 
     /* ===============================
-       BOTTOM BUTTON BAR — BOTTOM RIGHT (LARGER)
+       BOTTOM BUTTON BAR — BOTTOM RIGHT MOBILE!!!
        =============================== */
     #toggleRoute,
     #gpsToggle,
     #downloadMap,
     #hybridToggle {
-        position: fixed;
-        right: 20px; /* Changed to right alignment */
-        width: 90px; /* Even larger buttons */
-        height: 90px; /* Even larger buttons */
-        z-index: 25;
-        transform: none;
-        border-radius: 15px; /* More rounded for mobile */
+        position: fixed !important;
+        right: 20px !important; /* BOTTOM RIGHT ALIGNMENT */
+        width: 85px !important; /* Large buttons */
+        height: 85px !important; /* Large buttons */
+        z-index: 25 !important;
+        transform: none !important;
+        border-radius: 15px !important;
+        left: auto !important;
+        top: auto !important;
     }
 
-    /* Vertical layout on the right - BOTTOM RIGHT POSITIONING */
-    #toggleRoute { right: 20px; bottom: 350px; } /* Top button */
-    #gpsToggle    { right: 20px; bottom: 240px; } /* Second button */
-    #downloadMap  { right: 20px; bottom: 130px; } /* Third button */
-    #hybridToggle { right: 20px; bottom: 20px; }  /* Bottom button */
+    /* MOBILE BOTTOM RIGHT BUTTON STACK */
+    #toggleRoute { 
+        right: 20px !important; 
+        bottom: 320px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
+    #gpsToggle    { 
+        right: 20px !important; 
+        bottom: 220px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
+    #downloadMap  { 
+        right: 20px !important; 
+        bottom: 120px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
+    #hybridToggle { 
+        right: 20px !important; 
+        bottom: 20px !important; 
+        left: auto !important;
+        top: auto !important;
+    }
 
-    /* Even larger icons */
+    /* Large icons for mobile */
     #toggleRoute svg,
     #gpsToggle svg,
     #downloadMap svg {
-        width: 48px; /* Even larger icons */
-        height: 48px; /* Even larger icons */
+        width: 45px !important; /* Large icons */
+        height: 45px !important; /* Large icons */
     }
 
     #hybridToggle img {
-        width: 48px; /* Even larger icons */
-        height: 48px; /* Even larger icons */
+        width: 45px !important; /* Large icons */
+        height: 45px !important; /* Large icons */
     }
 
     /* Disable hover/active scale conflicts */
