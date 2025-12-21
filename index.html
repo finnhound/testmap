@@ -1115,8 +1115,42 @@ document.getElementById('downloadMap').onclick = async () => {
     
     setLoading(true);
     
-    // Calculate how much bigger the canvas needs to be
-    // If we're at zoom 10 and want zoom 15 tiles, we need 2^(15-10) = 32x more pixels
+    // If current zoom is already 15 or higher, just capture the current map
+    if (originalZoom >= 15) {
+        // Wait a moment for any pending renders
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const mapCanvas = activeMap.getCanvas();
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = mapCanvas.width;
+        tempCanvas.height = mapCanvas.height;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(mapCanvas, 0, 0);
+        
+        // Add attribution with FIXED small size
+        const attr = "© MapLibre | © ORS | © OpenStreetMap | © MapTiler";
+        const fontSize = 14;
+        const padding = 20;
+        const boxHeight = 35;
+        
+        ctx.font = fontSize + "px Inter, sans-serif";
+        const textWidth = ctx.measureText(attr).width;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+        ctx.fillRect(tempCanvas.width - textWidth - padding, tempCanvas.height - boxHeight, textWidth + padding, boxHeight);
+        ctx.fillStyle = "#333";
+        ctx.fillText(attr, tempCanvas.width - textWidth - (padding/2), tempCanvas.height - 12);
+        
+        // Download
+        const a = document.createElement('a');
+        a.href = tempCanvas.toDataURL();
+        a.download = `map-zoom${Math.round(originalZoom)}-${Date.now()}.png`;
+        a.click();
+        
+        setLoading(false);
+        return;
+    }
+    
+    // Otherwise, build high-res version at zoom 15
     const targetZoom = 15;
     const zoomDifference = targetZoom - originalZoom;
     const scaleFactor = Math.pow(2, zoomDifference);
@@ -1150,7 +1184,23 @@ document.getElementById('downloadMap').onclick = async () => {
     // Wait for the temp map to fully load
     await new Promise((resolve) => {
         tempMap.on('load', () => {
-            // Wait for tiles to render
+            // If there's an active route, add it to the temp map
+            if (activeMap.getSource('route')) {
+                const routeData = activeMap.getSource('route')._data;
+                tempMap.addSource('route', { type: 'geojson', data: routeData });
+                tempMap.addLayer({
+                    id: 'route',
+                    type: 'line',
+                    source: 'route',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 
+                        'line-color': '#0074d9', 
+                        'line-width': 5
+                    }
+                });
+            }
+            
+            // Wait for tiles and route to render
             setTimeout(resolve, 2000);
         });
     });
