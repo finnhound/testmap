@@ -305,14 +305,19 @@ button:active { transform: scale(0.97); }
        SEARCH / ROUTING GUI — TOP RIGHT (THINNER & SCALED)
        =============================== */
     #controls {
-        width: calc(100% - 40px); /* Responsive width */ [cite: 350, 578]
-        max-width: 400px; [cite: 350, 578]
-        left: 20px; [cite: 350, 577]
-        right: auto; [cite: 350, 577]
-        padding: 15px; [cite: 350, 579]
-        gap: 10px; [cite: 351, 580]
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        left: auto;
+        transform: none;
+        flex-direction: column;
+        width: 360px; /* Thinner width */
+        padding: 24px 28px; /* Reduced padding */
+        gap: 20px; /* Reduced gap */
+        border-radius: 24px; /* Slightly smaller border radius */
+        z-index: 30;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.4);
     }
-}
 
     #searchBox {
         width: 100%;
@@ -323,56 +328,35 @@ button:active { transform: scale(0.97); }
         min-height: 50px; /* Reduced height */
     }
 
-     #searchResults {
-        max-height: 300px;
-        border-radius: 18px;
+    #mode,
+    #resetRoute {
+        width: 100%;
+        font-size: 20px; /* Smaller font */
+        padding: 16px 20px; /* Thinner padding */
+        border-radius: 12px; /* Smaller border radius */
+        height: auto;
+        min-height: 50px; /* Reduced height */
+        transform: none !important; /* keep animations working */
     }
 
-    .searchItem {
-        font-size: 18px;
-        padding: 18px 22px;
-        line-height: 1.35;
-    }
-}
-#mode, #resetRoute {
-        width: 100%; [cite: 350, 578]
-        height: 50px; /* Uniform touch-friendly height */ [cite: 353, 586]
-        font-size: 18px; [cite: 355, 588]
-        margin-top: 10px; [cite: 317, 540]
-        border-radius: 12px; [cite: 353, 585]
-        display: none; /* Controlled by .visible class in JS */
-    }
-
-    #mode.visible, #resetRoute.visible {
-        display: block !important; [cite: 356, 590]
-        opacity: 1; [cite: 356, 590]
-        max-height: 50px; [cite: 356, 590]
-    }
-
-    
     /* ===============================
        ROUTE INFO — BOTTOM CENTER (LARGER)
        =============================== */
-       .route-info {
-        position: fixed; 
-        bottom: 110px; /* Adjusted to sit above hybrid toggle */ 
-        left: 50%; 
-        transform: translateX(-50%); 
-        font-size: 16px; /* Scaled down from 20px for better fit */ [cite: 357, 592]
-        padding: 12px 20px; [cite: 357, 592]
-        width: 80%; [cite: 357, 592]
-        max-width: 300px; [cite: 357, 592]
-        text-align: center; [cite: 358, 593]
-        z-index: 100; [cite: 358, 593]
+    .route-info {
+        position: fixed;
+        bottom: 80px; /* Bottom center positioning */
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 26px; /* Much larger font */
+        padding: 24px 40px; /* Much larger padding */
+        border-radius: 35px; /* Much larger border radius */
+        max-width: 90vw;
+        white-space: normal;
+        text-align: center;
+        z-index: 26;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        font-weight: bold;
     }
-}
-
-    .route-info.visible {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-
-
 
     /* ===============================
        BOTTOM BUTTON BAR — BOTTOM RIGHT MOBILE!!!
@@ -538,8 +522,7 @@ const MT_KEY = 'OtdP8RQkvwYY4wHOxlrm';
 const STREETS_URL = `https://api.maptiler.com/maps/019b2817-43ac-7a98-b15b-c204722a617b/style.json?key=${MT_KEY}`;
 const HYBRID_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MT_KEY}`;
 
-// Replace the old isMobile line with this 
-const isMobile = window.matchMedia("(max-width: 768px)").matches || window.innerHeight > window.innerWidth; [cite: 621];
+const isMobile = window.innerHeight > window.innerWidth;
 const pinSize = isMobile ? 48 : 40;
 
 const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
@@ -777,11 +760,9 @@ mapHybrid.on('load', () => {
 let lastHeading = null;
 
 function handleOrientation(event) {
-    if (!isMobile) return;
-
     let heading = null;
 
-    // iOS: true compass heading
+    // iOS (true compass heading)
     if (event.webkitCompassHeading !== undefined) {
         heading = event.webkitCompassHeading;
     }
@@ -792,31 +773,29 @@ function handleOrientation(event) {
 
     if (heading === null) return;
 
-    // Smooth heading
+// Smooth heading
     if (lastHeading !== null) {
         let diff = heading - lastHeading;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
-        heading = lastHeading + diff * 0.2;
+        heading = lastHeading + diff * 0.25;
     }
     lastHeading = heading;
 
-    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-    const mapBearing = activeMap.getBearing();
-
-    // 🔥 KEY FIX: compensate for map bearing
-    const correctedHeading = (heading - mapBearing + 360) % 360;
+    // FIX: Remove the +90 offset so the arrow points North (0°) correctly
+    const correctedHeading = heading % 360;
 
     if (userMarkerStreets) {
         userMarkerStreets.setRotation(correctedHeading);
         userMarkerHybrid.setRotation(correctedHeading);
     }
 
-    if (locationMode && currentCoords) {
+    if (locationMode && currentCoords && isMobile) {
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         activeMap.easeTo({
             center: currentCoords,
-            bearing: heading, // map rotates to true heading
-            duration: 120
+            bearing: correctedHeading,
+            duration: 100
         });
     }
 }
@@ -1044,12 +1023,6 @@ function fetchRoute() {
             routeInfo.style.opacity = '1';
         }
 
-// inside fetchRoute(), mobile section
-if (isMobile) {
-    routeInfo.classList.add('visible');
-}
-
-        
         // Draw line on both maps
         [mapStreets, mapHybrid].forEach(m => {
             // Clean up old route safely
