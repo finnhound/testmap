@@ -671,27 +671,67 @@ let Syncing = false;
 const sync = (src, dest) => {
     if (Syncing) return;
     Syncing = true;
-    dest.jumpTo({ 
-        center: src.getCenter(), 
-        zoom: src.getZoom(), 
-        bearing: src.getBearing() 
-    });
+    
+    try {
+        const center = src.getCenter();
+        const zoom = src.getZoom();
+        const bearing = src.getBearing();
+        
+        // Only sync if values are valid
+        if (center && !isNaN(center.lng) && !isNaN(center.lat) && !isNaN(zoom)) {
+            dest.jumpTo({ 
+                center: center, 
+                zoom: zoom, 
+                bearing: bearing 
+            });
+        }
+    } catch (e) {
+        console.error('Sync error:', e);
+    }
+    
     // Throttles sync to the screen refresh rate
     requestAnimationFrame(() => Syncing = false);
 };
 
-mapStreets.on('move', () => sync(mapStreets, mapHybrid));
-mapHybrid.on('move', () => sync(mapHybrid, mapStreets));
+// Only sync when maps are loaded and ready
+mapStreets.on('load', () => {
+    mapStreets.on('move', () => {
+        if (mapHybrid.loaded()) {
+            sync(mapStreets, mapHybrid);
+        }
+    });
+});
+
+mapHybrid.on('load', () => {
+    mapHybrid.on('move', () => {
+        if (mapStreets.loaded()) {
+            sync(mapHybrid, mapStreets);
+        }
+    });
+});
 
 // Save view on move end
 function saveView() {
-    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-    const c = activeMap.getCenter();
-    const z = activeMap.getZoom();
-    localStorage.setItem('mapView', JSON.stringify({center: [c.lng, c.lat], zoom: z}));
+    try {
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        const c = activeMap.getCenter();
+        const z = activeMap.getZoom();
+        
+        if (c && !isNaN(c.lng) && !isNaN(c.lat) && !isNaN(z)) {
+            localStorage.setItem('mapView', JSON.stringify({center: [c.lng, c.lat], zoom: z}));
+        }
+    } catch (e) {
+        console.error('Save view error:', e);
+    }
 }
-mapStreets.on('moveend', saveView);
-mapHybrid.on('moveend', saveView);
+
+mapStreets.on('load', () => {
+    mapStreets.on('moveend', saveView);
+});
+
+mapHybrid.on('load', () => {
+    mapHybrid.on('moveend', saveView);
+});
 
 // --- GPS TRACKING ---
 
@@ -868,29 +908,39 @@ document.getElementById('gpsToggle').onclick = async () => {
                 const accuracyRadiusMeters = 50; // 50 meters radius for accuracy
                 
                 function updateAccuracyCircle() {
-                    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-                    const zoom = activeMap.getZoom();
-                    
-                    // Calculate pixels per meter at current zoom level
-                    // At equator: meters per pixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom)
-                    const lat = currentCoords[1];
-                    const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-                    const radiusPixels = accuracyRadiusMeters / metersPerPixel;
-                    const diameterPixels = radiusPixels * 2;
-                    
-                    // Update both circles
-                    circle1.style.width = diameterPixels + 'px';
-                    circle1.style.height = diameterPixels + 'px';
-                    circle2.style.width = diameterPixels + 'px';
-                    circle2.style.height = diameterPixels + 'px';
+                    try {
+                        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+                        const zoom = activeMap.getZoom();
+                        
+                        if (!currentCoords || isNaN(zoom)) return;
+                        
+                        // Calculate pixels per meter at current zoom level
+                        const lat = currentCoords[1];
+                        const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+                        const radiusPixels = accuracyRadiusMeters / metersPerPixel;
+                        const diameterPixels = radiusPixels * 2;
+                        
+                        // Update both circles
+                        if (circle1 && circle2) {
+                            circle1.style.width = diameterPixels + 'px';
+                            circle1.style.height = diameterPixels + 'px';
+                            circle2.style.width = diameterPixels + 'px';
+                            circle2.style.height = diameterPixels + 'px';
+                        }
+                    } catch (e) {
+                        console.error('Accuracy circle update error:', e);
+                    }
                 }
                 
                 // Initial size
                 updateAccuracyCircle();
                 
-                // Update on zoom
-                mapStreets.on('zoom', updateAccuracyCircle);
-                mapHybrid.on('zoom', updateAccuracyCircle);
+                // Update on zoom - use named function to allow removal
+                const updateCircleStreets = () => updateAccuracyCircle();
+                const updateCircleHybrid = () => updateAccuracyCircle();
+                
+                mapStreets.on('zoom', updateCircleStreets);
+                mapHybrid.on('zoom', updateCircleHybrid);
                 
                 document.getElementById('gpsToggle').classList.add('active');
                 
