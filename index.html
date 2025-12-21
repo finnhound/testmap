@@ -648,6 +648,25 @@ if (!isMobile) {
         const leftPosition = controlsRect.left - 20; // 20px gap from controls
         routeInfo.style.right = (window.innerWidth - leftPosition) + 'px';
     }
+
+    if (isMobile) {
+    const controls = document.getElementById('controls');
+    const routeInfo = document.querySelector('.route-info');
+    
+    // Lock Search GUI to Top Right
+    controls.style.top = '20px';
+    controls.style.right = '20px';
+    controls.style.left = 'auto';
+    controls.style.bottom = 'auto';
+
+    // Lock Route Info to Bottom Middle
+    if (routeInfo) {
+        routeInfo.style.bottom = '50px';
+        routeInfo.style.left = '50%';
+        routeInfo.style.transform = 'translateX(-50%)';
+        routeInfo.style.top = 'auto'; // Clear any previous top setting
+    }
+}
     
     // Position initially and on window resize
     window.addEventListener('resize', positionRouteInfo);
