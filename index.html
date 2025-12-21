@@ -250,6 +250,34 @@ button:active { transform: scale(0.97); }
 }
 .maptiler-logo img { height: 20px; width: auto; display: block; }
 
+    /* Add/Replace these in your <style> block */
+.location-pin-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;  /* Increased size as requested */
+    height: 48px;
+    position: relative;
+    cursor: pointer;
+    overflow: visible; /* Ensure large accuracy circles aren't clipped */
+}
+
+.accuracy-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(0, 122, 255, 0.1);
+    border: 1.5px solid rgba(0, 122, 255, 0.3);
+    pointer-events: none; /* Allows clicking through the circle to the map */
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: -1; /* Keeps the circle behind the pin icon */
+}
+
+/* Show the circle when hovering over the pin's hit area */
+.location-pin-wrapper:hover .accuracy-circle {
+    opacity: 1;
+}
+
 /* MOBILE ONLY SCALING (PORTRAIT) */
 @media screen and (orientation: portrait) {
     html, body { 
@@ -619,39 +647,6 @@ const arrowSVG = `
 const locationPinSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="3"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`;
 const searchPinSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="3"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg>`;
 
-// Accuracy circle styling for PC only
-const accuracyCircleStyle = `
-/* Accuracy circle styling - Fixed for centering and visibility */
-<style>
-.location-pin-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    position: relative;
-    cursor: pointer;
-    overflow: visible; /* Ensure large accuracy circles aren't clipped */
-}
-
-.accuracy-circle {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(0, 122, 255, 0.1);
-    border: 1.5px solid rgba(0, 122, 255, 0.3);
-    pointer-events: none; /* Crucial: so the circle doesn't block map clicks */
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: -1; /* Keep circle behind the pin icon */
-}
-
-/* Show the circle when hovering anywhere over the 40px hit area */
-.location-pin-wrapper:hover .accuracy-circle {
-    opacity: 1;
-}
-</style>
-`;
-
 function setLoading(active) {
     const bar = document.getElementById('loading-bar');
     if (active) {
@@ -854,16 +849,23 @@ document.getElementById('gpsToggle').onclick = async () => {
     } else {
 // PC: Show location pin + route from location
 if (watchId !== null) {
-    // ... (keep existing clear logic)
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    currentCoords = null;
+    if (locationPinStreets) {
+        locationPinStreets.remove();
+        locationPinHybrid.remove();
+        locationPinStreets = locationPinHybrid = null;
+    }
+    document.getElementById('gpsToggle').classList.remove('active');
 } else {
     setLoading(true);
     navigator.geolocation.getCurrentPosition(pos => {
         setLoading(false);
         currentCoords = [pos.coords.longitude, pos.coords.latitude];
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         
-        // Helper to create the marker element
-        const createLocationEl = () => {
+        // Helper to create the pin element with proper structure
+        const createPin = () => {
             const wrapper = document.createElement('div');
             wrapper.className = 'location-pin-wrapper';
             
@@ -871,8 +873,8 @@ if (watchId !== null) {
             circle.className = 'accuracy-circle';
             
             const icon = document.createElement('div');
-            icon.style.width = '24px'; // Slightly smaller icon for better precision feel
-            icon.style.height = '24px';
+            icon.style.width = '32px'; // Larger icon size
+            icon.style.height = '32px';
             icon.innerHTML = locationPinSVG;
             
             wrapper.appendChild(circle);
@@ -880,72 +882,56 @@ if (watchId !== null) {
             return { wrapper, circle };
         };
 
-        const res1 = createLocationEl();
-        const res2 = createLocationEl();
-        
-        const circle1 = res1.circle;
-        const circle2 = res2.circle;
+        const res1 = createPin();
+        const res2 = createPin();
 
-        // Create markers with explicit 'center' anchor
+        // Use 'center' anchor to ensure the crosshair is exactly on the coordinate
         locationPinStreets = new maplibregl.Marker({ element: res1.wrapper, anchor: 'center' })
             .setLngLat(currentCoords).addTo(mapStreets);
         locationPinHybrid = new maplibregl.Marker({ element: res2.wrapper, anchor: 'center' })
             .setLngLat(currentCoords).addTo(mapHybrid);
         
-        // Updated Accuracy Circle Function
-        function updateAccuracyCircle() {
+        // Update function for accuracy circle scaling
+        const updateAccuracy = () => {
             try {
                 const map = currentStyle === 'streets' ? mapStreets : mapHybrid;
                 const zoom = map.getZoom();
                 if (!currentCoords || isNaN(zoom)) return;
 
                 const lat = currentCoords[1];
-                // Meters per pixel calculation
                 const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
                 
-                // Set radius (e.g., 50m accuracy)
                 const accuracyRadiusMeters = 50; 
                 const diameter = (accuracyRadiusMeters / metersPerPixel) * 2;
                 
-                [circle1, circle2].forEach(c => {
+                [res1.circle, res2.circle].forEach(c => {
                     c.style.width = diameter + 'px';
                     c.style.height = diameter + 'px';
                 });
             } catch (e) { console.error(e); }
-        }
+        };
 
-        // Attach listeners
-        mapStreets.on('zoom', updateAccuracyCircle);
-        mapHybrid.on('zoom', updateAccuracyCircle);
-        updateAccuracyCircle(); // Initial call
-        
-        // ... (rest of the flyTo logic)              
-                document.getElementById('gpsToggle').classList.add('active');
-                
-                // Pan to location
-                activeMap.flyTo({center: currentCoords, zoom: Math.max(activeMap.getZoom(), 14), duration: 1500});
-                
-                // If routing enabled and NO route exists yet, set as start point
-                if (routingEnabled && !startMarker) {
-                    addPin(currentCoords, false);
-                }
-                
-                // Watch for updates
-                watchId = navigator.geolocation.watchPosition(pos => {
-                    currentCoords = [pos.coords.longitude, pos.coords.latitude];
-                    if (locationPinStreets) {
-                        locationPinStreets.setLngLat(currentCoords);
-                        locationPinHybrid.setLngLat(currentCoords);
-                    }
-                    // Don't update route if it already exists
-                }, null, { enableHighAccuracy: true, maximumAge: 5000 });
-            }, err => {
-                setLoading(false);
-                alert('Unable to get location: ' + err.message);
-            }, { enableHighAccuracy: true });
-        }
-    }
-};
+        mapStreets.on('zoom', updateAccuracy);
+        mapHybrid.on('zoom', updateAccuracy);
+        updateAccuracy();
+
+        document.getElementById('gpsToggle').classList.add('active');
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        activeMap.flyTo({center: currentCoords, zoom: 15, duration: 1500});
+
+        watchId = navigator.geolocation.watchPosition(p => {
+            currentCoords = [p.coords.longitude, p.coords.latitude];
+            if (locationPinStreets) {
+                locationPinStreets.setLngLat(currentCoords);
+                locationPinHybrid.setLngLat(currentCoords);
+                updateAccuracy();
+            }
+        }, null, { enableHighAccuracy: true });
+    }, err => {
+        setLoading(false);
+        alert('Location error: ' + err.message);
+    });
+}
 
 // --- ROUTING ENGINE ---
 function rebuildRoutePoints() {
