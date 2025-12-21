@@ -1111,9 +1111,9 @@ document.getElementById('downloadMap').onclick = async () => {
     const originalZoom = activeMap.getZoom();
     const originalCenter = activeMap.getCenter();
     
-    // Set to zoom level 14 to ensure tiles are loaded
+    // Set to zoom level 18 to ensure tiles are loaded
     setLoading(true);
-    activeMap.setZoom(14);
+    activeMap.setZoom(18);
     
     // Wait for all tiles to load
     await new Promise((resolve) => {
