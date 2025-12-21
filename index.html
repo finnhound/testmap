@@ -271,21 +271,14 @@ button:active { transform: scale(0.97); }
         top: 20px; 
         left: 20px;
         right: auto;
-        transform: scale(1.6);
+        transform: scale(2.0);
         transform-origin: top left;
         width: auto; 
         max-width: 45%;
         white-space: normal;
-        padding: 10px 18px;
-        font-size: 14px;
-    }
-   
-    .route-info {
-            transform: scale(2.0);          /* increase size */
-        transform-origin: top left;
-        font-size: 16px;                /* larger text */
-        padding: 14px 22px;             /* more breathing room */
-        border-radius: 30px;            /* keep pill look */
+        font-size: 16px;
+        padding: 14px 22px;
+        border-radius: 30px;
         box-shadow: 0 8px 24px rgba(102, 126, 234, 0.45);
     }
     
@@ -762,6 +755,26 @@ document.getElementById('gpsToggle').onclick = async () => {
 };
 
 // --- ROUTING ENGINE ---
+function rebuildRoutePoints() {
+    // Always reconstruct the route from current marker positions
+    routePoints = [];
+    
+    // Start point
+    if (startMarker) {
+        routePoints.push([startMarker.getLngLat().lng, startMarker.getLngLat().lat]);
+    }
+    
+    // All waypoints in their current order
+    waypointMarkers.forEach(wp => {
+        routePoints.push([wp.getLngLat().lng, wp.getLngLat().lat]);
+    });
+    
+    // End point
+    if (endMarker) {
+        routePoints.push([endMarker.getLngLat().lng, endMarker.getLngLat().lat]);
+    }
+}
+
 function updateSearchPlaceholder() {
     const sb = document.getElementById('searchBox');
     if (!routingEnabled) sb.placeholder = "Search";
@@ -910,6 +923,7 @@ function addPin(lngLat, isSearch = false) {
         const pos = [m.getLngLat().lng, m.getLngLat().lat];
         if (m === startMarker) routePoints[0] = pos; 
         else routePoints[routePoints.length-1] = pos;
+        rebuildRoutePoints();
         shouldPanToRoute = true;
         fetchRoute();
     });
@@ -972,13 +986,9 @@ function addWaypoint(lngLat) {
     wp.on('dragend', () => {
         if (isMobile) el.style.opacity = '0.7';
         
-        // Always calculate index fresh to prevent "disappearing route"
-        const idx = waypointMarkers.indexOf(wp);
-        if (idx !== -1) {
-            // idx + 1 because routePoints[0] is always the startMarker
-            routePoints[idx + 1] = [wp.getLngLat().lng, wp.getLngLat().lat];
-            fetchRoute();
-        }
+        // Recalculate the entire route with updated waypoint positions
+        rebuildRoutePoints();
+        fetchRoute();
     });
 
     // CLICK LOGIC: Stop propagation to prevent "double-adding" points on mobile
@@ -987,8 +997,8 @@ function addWaypoint(lngLat) {
         const idx = waypointMarkers.indexOf(wp);
         if (idx > -1) {
             waypointMarkers.splice(idx, 1);
-            routePoints.splice(idx + 1, 1); // +1 offset for Start Pin
             wp.remove();
+            rebuildRoutePoints();
             fetchRoute();
         }
     });
@@ -1096,8 +1106,34 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
     }, 800);
 });
 
-document.getElementById('downloadMap').onclick = () => {
-    const mapCanvas = (currentStyle === 'streets' ? mapStreets : mapHybrid).getCanvas();
+document.getElementById('downloadMap').onclick = async () => {
+    const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+    const originalZoom = activeMap.getZoom();
+    const originalCenter = activeMap.getCenter();
+    
+    // Set to zoom level 14 to ensure tiles are loaded
+    setLoading(true);
+    activeMap.setZoom(14);
+    
+    // Wait for all tiles to load
+    await new Promise((resolve) => {
+        if (activeMap.loaded()) {
+            resolve();
+        } else {
+            activeMap.once('idle', resolve);
+        }
+    });
+    
+    // Restore original view
+    activeMap.jumpTo({
+        center: originalCenter,
+        zoom: originalZoom
+    });
+    
+    // Wait for render to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const mapCanvas = activeMap.getCanvas();
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = mapCanvas.width; 
     tempCanvas.height = mapCanvas.height;
@@ -1114,6 +1150,8 @@ document.getElementById('downloadMap').onclick = () => {
     a.href = tempCanvas.toDataURL(); 
     a.download = `map-${Date.now()}.png`; 
     a.click();
+    
+    setLoading(false);
 };
 
 document.getElementById('toggleRoute').onclick = function() {
@@ -1189,5 +1227,3 @@ updateRouteFromLocationButton();
 </script>
 </body>
 </html>
-
-
