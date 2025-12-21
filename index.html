@@ -1124,15 +1124,10 @@ document.getElementById('downloadMap').onclick = async () => {
         }
     });
     
-    // Restore original view
-    activeMap.jumpTo({
-        center: originalCenter,
-        zoom: originalZoom
-    });
-    
-    // Wait for render to complete
+    // Wait for render to complete at zoom 14
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    // CAPTURE THE CANVAS NOW (while still at zoom 14)
     const mapCanvas = activeMap.getCanvas();
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = mapCanvas.width; 
@@ -1146,6 +1141,14 @@ document.getElementById('downloadMap').onclick = async () => {
     ctx.fillRect(tempCanvas.width - textWidth - 20, tempCanvas.height - 35, textWidth + 20, 35);
     ctx.fillStyle = "#333";
     ctx.fillText(attr, tempCanvas.width - textWidth - 10, tempCanvas.height - 12);
+    
+    // NOW restore original view
+    activeMap.jumpTo({
+        center: originalCenter,
+        zoom: originalZoom
+    });
+    
+    // Download the captured image
     const a = document.createElement('a'); 
     a.href = tempCanvas.toDataURL(); 
     a.download = `map-${Date.now()}.png`; 
