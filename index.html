@@ -893,7 +893,7 @@ document.getElementById('gpsToggle').onclick = async () => {
 
                         const lat = currentCoords[1];
                         const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-                        const accuracyRadiusMeters = 150; 
+                        const accuracyRadiusMeters = 125; 
                         const diameter = (accuracyRadiusMeters / metersPerPixel) * 2;
                         
                         [res1.circle, res2.circle].forEach(c => {
