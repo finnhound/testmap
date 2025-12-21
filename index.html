@@ -301,56 +301,69 @@ button:active { transform: scale(0.97); }
         position: absolute;
     }
 
-   /* ===============================
-       HUGE SEARCH GUI — TOP RIGHT
+/* ===============================
+       UNIFORM HUGE UI — TOP RIGHT
        =============================== */
     #controls {
         position: fixed;
         top: 20px;
         right: 20px;
-        left: auto; /* Locked to right */
-        width: 420px; /* Much wider for mobile */
-        max-width: 60vw; /* Prevents overlap with top-left info */
-        padding: 25px; 
-        gap: 20px;
-        border-radius: 28px;
-        z-index: 100;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        box-shadow: 0 15px 45px rgba(0,0,0,0.4);
+        left: auto; 
+        
+        /* Fixed width ensures all children (dropdown/button) match */
+        width: 450px; 
+        max-width: 65vw; 
+        
         display: flex;
         flex-direction: column;
+        gap: 15px; /* Consistent spacing between elements */
+        padding: 20px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.4);
     }
 
     #searchBox {
-        width: 100%;
-        font-size: 32px !important; /* Massive input text */
-        padding: 20px 25px; 
-        border-radius: 18px; 
-        height: 80px; /* Extra tall for easy tapping */
+        width: 100%; /* Spans full width of #controls */
+        height: 85px; /* Massive height */
+        font-size: 32px !important;
+        padding: 0 25px;
+        border-radius: 16px;
         border: 2px solid #ddd;
+        box-sizing: border-box; /* Crucial for uniformity */
+    }
+
+    /* DROPDOWN & RESET BUTTON UNIFORMITY */
+    #mode, 
+    #resetRoute {
+        width: 100% !important; /* Forces same width as search bar */
+        height: 75px !important; /* Slightly shorter than search for visual hierarchy */
+        font-size: 28px !important;
+        font-weight: bold;
+        border-radius: 16px;
+        margin: 0; /* Reset margins */
+        padding: 0 20px;
         box-sizing: border-box;
+        display: none; /* Controlled by .visible in JS */
+    }
+
+    /* Ensure display:block doesn't break the width when visible */
+    #mode.visible, 
+    #resetRoute.visible {
+        display: block !important;
     }
 
     #searchResults {
-        top: 110px; /* Offset for the taller search box */
-        border-radius: 18px;
-        max-height: 50vh;
+        top: 115px; /* Adjusted for taller search box */
+        width: 100%;
+        border-radius: 16px;
     }
 
     .searchItem {
-        padding: 25px; 
-        font-size: 28px; /* Massive autocomplete text */
-        line-height: 1.4;
-        border-bottom: 1px solid #eee;
-    }
-
-    /* Buttons inside the search pill */
-    #mode, #resetRoute {
-        height: 70px !important;
-        font-size: 26px !important;
-        font-weight: bold;
-        border-radius: 15px;
+        padding: 25px;
+        font-size: 28px;
     }
 
     /* ===============================
