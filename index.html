@@ -1111,107 +1111,63 @@ document.getElementById('downloadMap').onclick = async () => {
     const originalZoom = activeMap.getZoom();
     const originalCenter = activeMap.getCenter();
     const originalBearing = activeMap.getBearing();
+    const originalPitch = activeMap.getPitch();
     
     setLoading(true);
     
-    // Get current view bounds
-    const bounds = activeMap.getBounds();
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
+    // Strategy: Create a hidden map at zoom 17, let it render, capture it, then delete it
+    const hiddenContainer = document.createElement('div');
+    hiddenContainer.style.width = activeMap.getContainer().offsetWidth + 'px';
+    hiddenContainer.style.height = activeMap.getContainer().offsetHeight + 'px';
+    hiddenContainer.style.position = 'absolute';
+    hiddenContainer.style.top = '-9999px';
+    document.body.appendChild(hiddenContainer);
     
-    // Calculate tile coordinates at zoom 17
-    const zoom = 17;
-    const tileSize = 512;
+    // Create temporary map at zoom 17 with same center
+    const tempMap = new maplibregl.Map({
+        container: hiddenContainer,
+        style: currentStyle === 'streets' ? STREETS_URL : HYBRID_URL,
+        center: originalCenter,
+        zoom: 17,
+        bearing: originalBearing,
+        pitch: originalPitch,
+        attributionControl: false,
+        preserveDrawingBuffer: true
+    });
     
-    function long2tile(lon, zoom) { return Math.floor((lon + 180) / 360 * Math.pow(2, zoom)); }
-    function lat2tile(lat, zoom) { return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom)); }
+    // Wait for the temp map to fully load
+    await new Promise((resolve) => {
+        tempMap.on('load', () => {
+            // Wait a bit more for tiles to render
+            setTimeout(resolve, 1500);
+        });
+    });
     
-    const minTileX = long2tile(sw.lng, zoom);
-    const maxTileX = long2tile(ne.lng, zoom);
-    const minTileY = lat2tile(ne.lat, zoom);
-    const maxTileY = lat2tile(sw.lat, zoom);
-    
-    const tilesWide = maxTileX - minTileX + 1;
-    const tilesHigh = maxTileY - minTileY + 1;
-    
-    // Create canvas to stitch tiles
-    const stitchCanvas = document.createElement('canvas');
-    stitchCanvas.width = tilesWide * tileSize;
-    stitchCanvas.height = tilesHigh * tileSize;
-    const ctx = stitchCanvas.getContext('2d');
-    
-    // Get the correct style URL
-    const styleUrl = currentStyle === 'streets' ? STREETS_URL : HYBRID_URL;
-    
-    // Fetch style to get tile URL pattern
-    const styleResponse = await fetch(styleUrl);
-    const style = await styleResponse.json();
-    
-    // Find the raster or vector tile source
-    let tileUrlTemplate = null;
-    for (const [key, source] of Object.entries(style.sources)) {
-        if (source.tiles && source.tiles.length > 0) {
-            tileUrlTemplate = source.tiles[0];
-            break;
-        }
-        if (source.url) {
-            // Fetch the TileJSON
-            const tileJsonResponse = await fetch(source.url);
-            const tileJson = await tileJsonResponse.json();
-            if (tileJson.tiles && tileJson.tiles.length > 0) {
-                tileUrlTemplate = tileJson.tiles[0];
-                break;
-            }
-        }
-    }
-    
-    if (!tileUrlTemplate) {
-        alert('Could not find tile URL in map style');
-        setLoading(false);
-        return;
-    }
-    
-    // Load all tiles
-    const tilePromises = [];
-    for (let y = minTileY; y <= maxTileY; y++) {
-        for (let x = minTileX; x <= maxTileX; x++) {
-            const url = tileUrlTemplate
-                .replace('{z}', zoom)
-                .replace('{x}', x)
-                .replace('{y}', y)
-                .replace('{r}', '@2x'); // High DPI
-            
-            const promise = new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => {
-                    const canvasX = (x - minTileX) * tileSize;
-                    const canvasY = (y - minTileY) * tileSize;
-                    ctx.drawImage(img, canvasX, canvasY, tileSize, tileSize);
-                    resolve();
-                };
-                img.onerror = () => resolve(); // Skip failed tiles
-                img.src = url;
-            });
-            tilePromises.push(promise);
-        }
-    }
-    
-    await Promise.all(tilePromises);
+    // Capture the temp map's canvas
+    const mapCanvas = tempMap.getCanvas();
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = mapCanvas.width;
+    tempCanvas.height = mapCanvas.height;
+    const ctx = tempCanvas.getContext('2d');
+    ctx.drawImage(mapCanvas, 0, 0);
     
     // Add attribution
     const attr = "© MapLibre | © ORS | © OpenStreetMap | © MapTiler";
-    ctx.font = "20px Inter, sans-serif";
+    ctx.font = "14px Inter, sans-serif";
     const textWidth = ctx.measureText(attr).width;
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.fillRect(stitchCanvas.width - textWidth - 30, stitchCanvas.height - 50, textWidth + 30, 50);
+    ctx.fillRect(tempCanvas.width - textWidth - 20, tempCanvas.height - 35, textWidth + 20, 35);
     ctx.fillStyle = "#333";
-    ctx.fillText(attr, stitchCanvas.width - textWidth - 15, stitchCanvas.height - 20);
+    ctx.fillText(attr, tempCanvas.width - textWidth - 10, tempCanvas.height - 12);
+    
+    // Clean up temp map
+    tempMap.remove();
+    document.body.removeChild(hiddenContainer);
     
     // Download
     const a = document.createElement('a');
-    a.href = stitchCanvas.toDataURL();
-    a.download = `map-zoom${zoom}-${Date.now()}.png`;
+    a.href = tempCanvas.toDataURL();
+    a.download = `map-zoom17-${Date.now()}.png`;
     a.click();
     
     setLoading(false);
