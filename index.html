@@ -936,7 +936,7 @@ userMarkerHybrid.setRotation(correctedHeading);
         const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
         activeMap.easeTo({
             center: currentCoords,
-            bearing: heading,
+            bearing: correctedHeading,
             duration: 100
         });
     }
