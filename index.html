@@ -926,7 +926,7 @@ function handleOrientation(event) {
 
     // Rotate user marker
     if (userMarkerStreets) {
-const correctedHeading = (heading + 180) % 360; // flip to correct south/north inversion
+const correctedHeading = (heading) % 360; // flip to correct south/north inversion
 userMarkerStreets.setRotation(correctedHeading);
 userMarkerHybrid.setRotation(correctedHeading);
     }
