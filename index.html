@@ -898,7 +898,7 @@ function handleOrientation(event) {
 
     // ✅ Android / Chrome
     else if (event.alpha !== null) {
-        heading = (360 - event.alpha) % 360;
+        heading = (360 - event.alpha - 5) % 360;
 
         // 🔥 Correct for screen rotation
         const screenAngle =
