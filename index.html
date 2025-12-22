@@ -366,8 +366,8 @@ button:active { transform: scale(0.97); }
         font-size: 28px;
     }
 
-  /* ===============================
-   MOBILE ROUTE INFO — TOP LEFT (LARGE)
+/* ===============================
+   MOBILE ROUTE INFO — TOP LEFT (LARGER)
    =============================== */
 .route-info {
     position: fixed !important;
@@ -376,27 +376,27 @@ button:active { transform: scale(0.97); }
     right: auto !important;
     bottom: auto !important;
 
-    font-size: 34px !important;
+    font-size: 40px !important;   /* 🔥 BIGGER */
     font-weight: 900;
-    height: 95px;
-    padding: 0 40px;
-    border-radius: 60px;
 
-    display: flex !important;
+    height: 110px;
+    padding: 0 48px;
+    border-radius: 70px;
+
+    display: none;                /* 🔥 HIDDEN UNTIL ROUTE */
     align-items: center;
     justify-content: center;
     text-align: center;
 
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    box-shadow: 0 12px 45px rgba(0,0,0,0.65);
     z-index: 160;
 
     white-space: nowrap;
-    opacity: 1 !important;
 }
 
 /* ===============================
-   MOBILE ROUTING GUI — TOP RIGHT
+   MOBILE SEARCH / ROUTING GUI — TOP RIGHT
    =============================== */
 #controls {
     position: fixed !important;
@@ -404,9 +404,12 @@ button:active { transform: scale(0.97); }
     right: 20px !important;
     left: auto !important;
     bottom: auto !important;
+
+    transform: none !important; /* 🔥 KILLS CENTERING */
+    margin: 0 !important;
+
     z-index: 150 !important;
 }
-
 /* ===============================
    HIDE ROUTING GUI DURING LOCATION MODE
    =============================== */
@@ -691,6 +694,7 @@ function clearRoute() {
     if (endMarker) { endMarker.remove(); endMarker = null; }
     routePoints = [];
     const routeInfo = document.getElementById('route-info');
+    routeInfo.style.display = 'none';
     
     if (!isMobile) {
         routeInfo.classList.remove('visible');
