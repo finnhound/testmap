@@ -891,52 +891,51 @@ let lastHeading = null;
 function handleOrientation(event) {
     let heading = null;
 
+    // ✅ iOS (already tilt compensated)
     if (event.webkitCompassHeading !== undefined) {
-        // iOS: already in degrees from North
         heading = event.webkitCompassHeading;
-    } else if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
-        // Android / generic: compute compass heading
-        const alpha = event.alpha * Math.PI / 180; // Z axis
-        const beta = event.beta * Math.PI / 180;   // X axis
-        const gamma = event.gamma * Math.PI / 180; // Y axis
+    }
 
-        // Convert to rotation matrix
-        const cA = Math.cos(alpha), sA = Math.sin(alpha);
-        const cB = Math.cos(beta), sB = Math.sin(beta);
-        const cG = Math.cos(gamma), sG = Math.sin(gamma);
+    // ✅ Android / Chrome
+    else if (event.alpha !== null) {
+        heading = 360 - event.alpha;
 
-        // Compute orientation
-        const x = -cA * sG - sA * sB * cG;
-        const y = -sA * sG + cA * sB * cG;
+        // 🔥 Correct for screen rotation
+        const screenAngle =
+            screen.orientation?.angle ??
+            window.orientation ??
+            0;
 
-        heading = Math.atan2(x, y) * 180 / Math.PI;
-        if (heading < 0) heading += 360;
+        heading = (heading + screenAngle) % 360;
     }
 
     if (heading === null) return;
 
-    // Smooth heading
+    // ✅ Smooth rotation
     if (lastHeading !== null) {
         let diff = heading - lastHeading;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
-        heading = lastHeading + diff * 0.25;
+        heading = lastHeading + diff * 0.15;
     }
     lastHeading = heading;
 
-    // Rotate user marker
+    // ✅ Rotate user arrow
     if (userMarkerStreets) {
         userMarkerStreets.setRotation(heading);
         userMarkerHybrid.setRotation(heading);
     }
 
-    // Rotate map if in location mode
+    // ✅ Rotate map (north-correct)
     if (locationMode && currentCoords && isMobile) {
-        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        const activeMap =
+            currentStyle === 'streets' ? mapStreets : mapHybrid;
+
         activeMap.easeTo({
             center: currentCoords,
             bearing: heading,
-            duration: 100
+            duration: 80,
+            easing: t => t
         });
     }
 }
