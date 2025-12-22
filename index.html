@@ -367,7 +367,7 @@ button:active { transform: scale(0.97); }
     }
 
 /* ===============================
-   MOBILE ROUTE INFO — TOP LEFT (LARGER)
+   MOBILE ROUTE INFO — TOP LEFT (TEXT PERFECTLY CENTERED)
    =============================== */
 .route-info {
     position: fixed !important;
@@ -376,23 +376,27 @@ button:active { transform: scale(0.97); }
     right: auto !important;
     bottom: auto !important;
 
-    font-size: 40px !important;   /* 🔥 BIGGER */
+    font-size: 40px !important;
     font-weight: 900;
+    color: white;
 
     height: 110px;
     padding: 0 48px;
     border-radius: 70px;
 
-    display: none;                /* 🔥 HIDDEN UNTIL ROUTE */
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    display: flex !important;              /* 🔥 REQUIRED */
+    align-items: center !important;        /* 🔥 VERTICAL CENTER */
+    justify-content: center !important;    /* 🔥 HORIZONTAL CENTER */
+    text-align: center !important;
+
+    line-height: 1 !important;             /* 🔥 KILLS TOP DRIFT */
+    white-space: nowrap;
 
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     box-shadow: 0 12px 45px rgba(0,0,0,0.65);
     z-index: 160;
 
-    white-space: nowrap;
+    display: none; /* stays hidden until route exists */
 }
 
 /* ===============================
