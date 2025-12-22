@@ -912,7 +912,7 @@ function updateSpeedDisplay() {
     if (!isMobile) return;
 
     const el = document.getElementById('speed-indicator');
-    if (!el) return;
+    if (!el) return; // 🔒 prevents crash
 
     el.textContent =
         gpsSpeedKmh < 1
@@ -939,10 +939,16 @@ function handleOrientation(event) {
         heading = 360 - event.alpha;
 
         // Screen orientation correction
-        const screenAngle =
-            screen.orientation?.angle ??
-            window.orientation ??
-            0;
+let screenAngle = 0;
+
+if (typeof window.orientation === 'number') {
+    screenAngle = window.orientation;
+} else if (
+    screen.orientation &&
+    typeof screen.orientation.angle === 'number'
+) {
+    screenAngle = screen.orientation.angle;
+}
 
         heading = (heading + screenAngle) % 360;
     }
