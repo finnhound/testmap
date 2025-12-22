@@ -886,11 +886,66 @@ function setMobileRoutingVisible(visible) {
     
 // --- GPS TRACKING ---
 
+let lastHeading = null;
+
+function handleOrientation(event) {
+    let heading = null;
+
+    if (event.webkitCompassHeading !== undefined) {
+        // iOS: already in degrees from North
+        heading = event.webkitCompassHeading;
+    } else if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
+        // Android / generic: compute compass heading
+        const alpha = event.alpha * Math.PI / 180; // Z axis
+        const beta = event.beta * Math.PI / 180;   // X axis
+        const gamma = event.gamma * Math.PI / 180; // Y axis
+
+        // Convert to rotation matrix
+        const cA = Math.cos(alpha), sA = Math.sin(alpha);
+        const cB = Math.cos(beta), sB = Math.sin(beta);
+        const cG = Math.cos(gamma), sG = Math.sin(gamma);
+
+        // Compute orientation
+        const x = -cA * sG - sA * sB * cG;
+        const y = -sA * sG + cA * sB * cG;
+
+        heading = Math.atan2(x, y) * 180 / Math.PI;
+        if (heading < 0) heading += 360;
+    }
+
+    if (heading === null) return;
+
+    // Smooth heading
+    if (lastHeading !== null) {
+        let diff = heading - lastHeading;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        heading = lastHeading + diff * 0.25;
+    }
+    lastHeading = heading;
+
+    // Rotate user marker
+    if (userMarkerStreets) {
+        userMarkerStreets.setRotation(heading);
+        userMarkerHybrid.setRotation(heading);
+    }
+
+    // Rotate map if in location mode
+    if (locationMode && currentCoords && isMobile) {
+        const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
+        activeMap.easeTo({
+            center: currentCoords,
+            bearing: heading,
+            duration: 100
+        });
+    }
+}
+
 document.getElementById('gpsToggle').onclick = async () => {
     if (isMobile) {
+        // MOBILE: Toggle location lock mode
         const blocker = document.getElementById('pan-blocker');
         if (watchId !== null && locationMode) {
-            // Disable location mode
             navigator.geolocation.clearWatch(watchId);
             window.removeEventListener('deviceorientation', handleOrientation);
             watchId = null;
@@ -908,7 +963,6 @@ document.getElementById('gpsToggle').onclick = async () => {
             activeMap.setBearing(0);
             lastHeading = null;
         } else {
-            // Enable location mode
             setLoading(true);
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const res = await DeviceOrientationEvent.requestPermission();
@@ -919,20 +973,18 @@ document.getElementById('gpsToggle').onclick = async () => {
             setMobileLocationMode(true);
             blocker.style.display = 'block';
             window.addEventListener('deviceorientation', handleOrientation, true);
-
+            
             watchId = navigator.geolocation.watchPosition(pos => {
                 setLoading(false);
                 currentCoords = [pos.coords.longitude, pos.coords.latitude];
                 const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
-
+                
                 if (!userMarkerStreets) {
                     const el1 = document.createElement('div'); el1.innerHTML = arrowSVG;
                     const el2 = document.createElement('div'); el2.innerHTML = arrowSVG;
                     userMarkerStreets = new maplibregl.Marker({element: el1, rotationAlignment: 'map'}).setLngLat(currentCoords).addTo(mapStreets);
                     userMarkerHybrid = new maplibregl.Marker({element: el2, rotationAlignment: 'map'}).setLngLat(currentCoords).addTo(mapHybrid);
-
-                    // 🔹 Zoom to level 15 on first activation
-                    activeMap.flyTo({center: currentCoords, zoom: 15, duration: 1500});
+                    activeMap.flyTo({center: currentCoords, zoom: 17, duration: 1500});
                 } else {
                     userMarkerStreets.setLngLat(currentCoords);
                     userMarkerHybrid.setLngLat(currentCoords);
