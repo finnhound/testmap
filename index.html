@@ -250,19 +250,7 @@ button:active { transform: scale(0.97); }
     bottom:10px; 
     z-index:25; 
 }
-/* Restores MapTiler logo to standard PC size */
-.maptiler-logo img { 
-    height: 25px !important; 
-    width: auto; 
-}
-
-/* Restores attribution text size and legibility */
-.attribution-text {
-    font-size: 11px !important;
-    padding: 4px 8px !important;
-    background: rgba(255, 255, 255, 0.8) !important;
-    border-radius: 4px !important;
-}}
+.maptiler-logo img { height: 20px; width: auto; display: block; }
 
     /* Add/Replace these in your <style> block */
 .location-pin-wrapper {
@@ -378,7 +366,7 @@ button:active { transform: scale(0.97); }
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 1px;
-        background: #ff6b6b;
+        background: #ff3b30;
         color: white;
         border: none;
         border-radius: 16px;
@@ -401,60 +389,37 @@ button:active { transform: scale(0.97); }
        MOBILE ROUTE INFO PILL
        =============================== */
     .route-info {
-        /* Position at Bottom Middle */
         position: fixed !important;
-        bottom: 30px !important; /* Distance from bottom edge */
-        top: auto !important;    /* Reset the top position from PC/previous styles */
-        left: 50% !important;
-        transform: translateX(-50%) scale(0.92); /* Horizontal center + hide scale */
-        
-        /* Thin Pill Shape */
-        height: 60px !important; /* Low height for "Thin" look */
-        padding: 0 40px !important;
-        border-radius: 50px !important; /* Full rounded ends */
-        
-        /* Large Text Styling */
-        font-size: 34px !important; /* Massive text */
-        font-weight: 800;
-        letter-spacing: -1px;
-        line-height: 60px !important; /* Matches height to center text vertically */
-        
-        /* Layout & Aesthetics */
+        top: 20px !important;
+        left: 20px !important;
+        font-size: 40px !important;
+        font-weight: 900;
+        color: white;
+        height: 110px;
+        padding: 0 48px;
+        border-radius: 70px;
         display: flex !important;
-        align-items: center;
-        justify-content: center;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
         white-space: nowrap;
-        z-index: 1000 !important; /* Stay above map and other buttons */
-        
-        /* Colors & Effects */
-        background: rgba(20, 20, 20, 0.9) !important; /* Dark sleek pill */
-        color: white !important;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        border: 1px solid rgba(255,255,255,0.2);
-
-        /* Animation States */
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 12px 45px rgba(0,0,0,0.65);
+        z-index: 160;
         opacity: 0;
         visibility: hidden;
+        transform: scale(0.92);
         pointer-events: none;
-        transition: 
-            opacity 0.3s ease, 
-            transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
-            visibility 0s linear 0.3s;
+        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s;
     }
 
-    /* Show State when Route is Active */
     body.route-active .route-info {
         opacity: 1;
         visibility: visible;
-        transform: translateX(-50%) scale(1); /* Return to full size */
+        transform: scale(1);
         pointer-events: auto;
-        transition: 
-            opacity 0.3s ease, 
-            transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
-            visibility 0s;
+        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
     }
-}
 
     /* HIDDEN STATES */
     body.location-mode #controls { display: none !important; }
@@ -1195,14 +1160,7 @@ if (shouldPanToRoute && routingMode !== 'trail') {
 }
     })
     .catch(err => {
-console.error("Routing Error:", err);
-        // Show user-friendly error
-        const routeInfo = document.getElementById('route-info');
-        routeInfo.innerText = "⚠️ Route unavailable. Please try again";
-        routeInfo.style.background = "#ff3b30"; // Red for error
-        routeInfo.classList.add('visible');
-        setTimeout(() => routeInfo.classList.remove('visible'), 3000);
-    } finally {
+        console.error("Fetch error:", err);
         setLoading(false);
     });
 }
@@ -1415,22 +1373,6 @@ function addWaypoint(lngLat) {
     fetchRoute();
 }
 
-    function onDragMove(e) {
-    const coords = e.lngLat;
-    const activeMarker = this; 
-    
-    // If the map is scaled (mobile), we need to manually sync markers 
-    // across both map instances because standard dragging logic ignores CSS transforms.
-    activeMarker.setLngLat(coords);
-    
-    // Sync to the "hidden" map instance immediately
-    const otherMap = currentStyle === 'streets' ? mapHybrid : mapStreets;
-    // ... rest of your existing cross-map sync logic ...
-    
-    rebuildRoutePoints();
-    if (routePoints.length >= 2) fetchRoute();
-}
-
 // Map Click Listeners
 [mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
     if (!routingEnabled) return;
@@ -1461,55 +1403,47 @@ function addWaypoint(lngLat) {
     }
 }));
 
-// Replace your existing #searchBox event listener with this:
-document.getElementById('searchBox').oninput = (e) => {
-    const q = e.target.value.trim();
-    const resultsDiv = document.getElementById('searchResults');
-    
-    if (searchTimeout) clearTimeout(searchTimeout);
-    
-    if (q.length < 2) {
-        resultsDiv.style.display = 'none';
-        resultsDiv.innerHTML = '';
-        setLoading(false); // Fix: Ensure loading bar turns off
-        return;
+// Search Box Listener
+document.getElementById('searchBox').addEventListener('input', (e) => {
+    const q = e.target.value;
+    clearTimeout(searchTimeout);
+    if(!q) { 
+        document.getElementById('searchResults').style.display = 'none'; 
+        return; 
     }
+    
+    searchTimeout = setTimeout(() => {
+        fetchSearchResults(q, e.target);
+    }, 800);
+});
 
-    searchTimeout = setTimeout(async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`);
-            const data = await res.json();
-            
-            // Fix: Check if input still matches the query to prevent "jumping" results
-            if (document.getElementById('searchBox').value.trim() !== q) return;
-            
-            resultsDiv.innerHTML = '';
-            if (data.length > 0) {
-                data.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'searchItem';
-                    div.innerText = item.display_name;
-                    div.onclick = () => {
-                        const coords = [parseFloat(item.lon), parseFloat(item.lat)];
-                        addPin(coords, true);
-                        resultsDiv.style.display = 'none';
-                        document.getElementById('searchBox').value = ''; // Fix: Clear search after selection
-                        setLoading(false);
-                    };
-                    resultsDiv.appendChild(div);
-                });
-                resultsDiv.style.display = 'block';
-            } else {
-                resultsDiv.style.display = 'none';
-            }
-        } catch (err) {
-            console.error('Search error:', err);
-        } finally {
+function fetchSearchResults(query, searchInput) {
+    setLoading(true);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+        .then(r => r.json()).then(data => {
             setLoading(false);
-        }
-    }, 450);
-};
+            const res = document.getElementById('searchResults'); 
+            res.innerHTML = '';
+            
+            // Store search results for Enter key handling and focus
+            res.dataset.searchResults = JSON.stringify(data);
+            
+            data.slice(0,5).forEach(item => {
+                const d = document.createElement('div'); 
+                d.className = 'searchItem'; 
+                d.textContent = item.display_name;
+                d.onclick = () => {
+                    handleSearchSelection(item, searchInput);
+                };
+                res.appendChild(d);
+            });
+            
+            // Only show if search box is focused
+            if (document.activeElement === searchInput) {
+                res.style.display = 'block';
+            }
+        }).catch(() => setLoading(false));
+}
 
 // Handle Enter key in search box
 document.getElementById('searchBox').addEventListener('keydown', (e) => {
