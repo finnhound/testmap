@@ -1373,10 +1373,10 @@ function addWaypoint(lngLat) {
     const snapped = snapToRoute(lngLat, window.lastRouteGeometry);
 
 const wp = new maplibregl.Marker({
-        element: el, 
-        draggable: true,
-        anchor: 'center'
-    })..setLngLat(snapped).addTo(activeMap);
+    element: el, 
+    draggable: true,
+    anchor: 'center'
+}).setLngLat(snapped).addTo(activeMap);
 
     // FIX: Insert point into the array correctly BEFORE the final destination
     const insertIndex = routePoints.length - 1;
@@ -1839,7 +1839,7 @@ function updateRouteFromLocationButton() {
     }
 }
 
-    document.getElementById('exportGPX').onclick = () => {
+    // document.getElementById('exportGPX').onclick = () => {
     if (!window.lastRouteGeometry) {
         alert('No route to export');
         return;
