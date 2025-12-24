@@ -1333,18 +1333,7 @@ function addPin(lngLat, isSearch = false) {
     rebuildRoutePoints();
     fetchRoute();
 }
-
-The error is happening because isMobile is not defined within the scope of the code block you pasted, or it was lost during the copy-paste process.
-
-The variable isMobile is defined globally at the top of your original script (around line 106 in your source file), but if you are pasting this function into a different context or if that definition was deleted, the code will break.
-
-The Fix
-You should check if isMobile is defined at the top of your script. If it is missing or the function can't see it, you can simply redefine it inside the function to be safe.
-
-Here is the corrected block with a safety check for isMobile:
-
-JavaScript
-
+    
 /* HELPER: Mathematical projection to snap to the visual line segment. */
 function snapToRoute(lngLat, routeGeojson) {
     if (!routeGeojson || !routeGeojson.coordinates) return lngLat;
