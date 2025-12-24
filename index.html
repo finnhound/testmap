@@ -1202,7 +1202,7 @@ if (shouldPanToRoute && routingMode !== 'trail') {
     shouldPanToRoute = false;
 }
     })
-    .catch(err => {
+ } catch (err) {
 console.error("Routing Error:", err);
         // Show user-friendly error
         const routeInfo = document.getElementById('route-info');
