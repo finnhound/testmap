@@ -1304,29 +1304,33 @@ function addPin(lngLat, isSearch = false) {
     updateSearchPlaceholder();
 }
 
-    function addTrailPoint(lngLat) {
+   function addTrailPoint(lngLat) {
 
-    // 1️⃣ No start yet → set start
+    // Start
     if (!startMarker) {
         addPin(lngLat);
         return;
     }
 
-    // 2️⃣ Start exists, no end → set end
+    // End
     if (!endMarker) {
         addPin(lngLat);
         return;
     }
 
-    // 3️⃣ Start + End exist → convert old end to waypoint
+    // Convert old end → waypoint
     const prevEnd = endMarker.getLngLat();
     endMarker.remove();
     endMarker = null;
 
     addWaypoint([prevEnd.lng, prevEnd.lat]);
 
-    // 4️⃣ New click becomes new end
+    // New end
     addPin(lngLat);
+
+    // 🔥 FORCE route refresh immediately
+    rebuildRoutePoints();
+    fetchRoute();
 }
 
     function snapToRoute(lngLat, routeGeojson) {
@@ -1390,19 +1394,24 @@ const wp = new maplibregl.Marker({
         });
     }
 
-    wp.on('dragend', () => {
-        if (isMobile) el.style.opacity = '0.7';
-        
-        // Recalculate the entire route with updated waypoint positions
-const snapped = snapToRoute(
-    [wp.getLngLat().lng, wp.getLngLat().lat],
-    window.lastRouteGeometry
-);
-wp.setLngLat(snapped);
+  wp.on('dragend', async () => {
+    rebuildRoutePoints();
 
-rebuildRoutePoints();
-fetchRoute();
-    });
+    // Fetch updated route first
+    await fetchRoute();
+
+    // Snap AGAIN to the new route geometry
+    const snapped = snapToRoute(
+        [wp.getLngLat().lng, wp.getLngLat().lat],
+        window.lastRouteGeometry
+    );
+
+    wp.setLngLat(snapped);
+
+    // Rebuild once more with snapped point
+    rebuildRoutePoints();
+    fetchRoute();
+});
 
     // CLICK LOGIC: Stop propagation to prevent "double-adding" points on mobile
     el.addEventListener('click', (e) => {
