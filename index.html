@@ -52,24 +52,25 @@ html, body { margin:0; height:100%; font-family:'Inter', sans-serif; overflow: h
     box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
 }
 
-#mode, #resetRoute {
+#mode, #resetRoute, #routingType {
     opacity: 0;
     max-width: 0;
     overflow: hidden;
     padding: 0;
     margin: 0;
     border: none;
+    /* Added routingType to the transition list for smooth sliding */
     transition: opacity 0.3s ease, max-width 0.3s ease, padding 0.3s ease, margin 0.3s ease;
 }
 
-#mode.visible, #resetRoute.visible {
+#mode.visible, #resetRoute.visible, #routingType.visible {
     opacity: 1;
     max-width: 200px;
     padding: 8px 14px;
     border: 1px solid #ddd;
 }
 
-#mode.visible {
+#mode.visible, #routingType.visible {
     margin: 0;
 }
 
@@ -1335,34 +1336,64 @@ function addPin(lngLat, isSearch = false) {
 
     function snapToRoute(lngLat, routeGeojson) {
     if (!routeGeojson || !routeGeojson.coordinates) return lngLat;
+    
+    const pt = { x: lngLat[0], y: lngLat[1] };
+    let closestPoint = { x: lngLat[0], y: lngLat[1] };
+    let minDistanceSq = Infinity;
 
-    let closest = null;
-    let minDist = Infinity;
+    const coords = routeGeojson.coordinates;
 
-    for (const c of routeGeojson.coordinates) {
-        const dx = lngLat[0] - c[0];
-        const dy = lngLat[1] - c[1];
-        const d = dx * dx + dy * dy;
-        if (d < minDist) {
-            minDist = d;
-            closest = c;
+    for (let i = 0; i < coords.length - 1; i++) {
+        const start = { x: coords[i][0], y: coords[i][1] };
+        const end = { x: coords[i+1][0], y: coords[i+1][1] };
+
+        // Project point onto line segment
+        const C = end.x - start.x;
+        const D = end.y - start.y;
+        const dot = (pt.x - start.x) * C + (pt.y - start.y) * D;
+        const len_sq = C * C + D * D;
+        let param = -1;
+        
+        if (len_sq !== 0) param = dot / len_sq;
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = start.x;
+            yy = start.y;
+        } else if (param > 1) {
+            xx = end.x;
+            yy = end.y;
+        } else {
+            xx = start.x + param * C;
+            yy = start.y + param * D;
+        }
+
+        const dx = pt.x - xx;
+        const dy = pt.y - yy;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < minDistanceSq) {
+            minDistanceSq = distSq;
+            closestPoint = { x: xx, y: yy };
         }
     }
-    return closest || lngLat;
+
+    return [closestPoint.x, closestPoint.y];
 }
     
 function addWaypoint(lngLat) {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
     
-    // UI Styling: Smaller and semi-transparent on mobile
+    [cite_start]// UI Styling: Smaller and semi-transparent on mobile [cite: 257]
     el.style.cursor = 'move';
     el.style.borderRadius = '50%';
     el.style.boxShadow = '0 3px 10px rgba(0,0,0,0.4)';
     el.style.border = '3px solid white';
     
     if (isMobile) {
-        // CRITICAL: Prevents the map from scrolling/panning while you drag the dot
+        [cite_start]// CRITICAL: Prevents the map from scrolling/panning while you drag the dot [cite: 259]
         el.style.touchAction = 'none'; 
         el.style.width = '24px'; 
         el.style.height = '24px';
@@ -1374,46 +1405,40 @@ function addWaypoint(lngLat) {
         el.style.background = 'rgba(139, 138, 235, 0.9)'; 
     }
 
+    // Snap the INITIAL click to the route visually
     const snapped = snapToRoute(lngLat, window.lastRouteGeometry);
 
-const wp = new maplibregl.Marker({
-    element: el, 
-    draggable: true,
-    anchor: 'center'
-}).setLngLat(snapped).addTo(activeMap);
+    const wp = new maplibregl.Marker({
+        element: el, 
+        draggable: true,
+        anchor: 'center'
+    }).setLngLat(snapped).addTo(activeMap);
 
-    // FIX: Insert point into the array correctly BEFORE the final destination
+    [cite_start]// Insert point into the array correctly BEFORE the final destination [cite: 264]
     const insertIndex = routePoints.length - 1;
-    routePoints.splice(insertIndex, 0, lngLat);
+    routePoints.splice(insertIndex, 0, snapped); // Use snapped coord for initial placement
     waypointMarkers.push(wp);
 
-    // DRAG LOGIC: Move waypoint to finger position on mobile
+    [cite_start]// DRAG LOGIC: Move waypoint to finger position on mobile [cite: 265]
     if (isMobile) {
         wp.on('drag', () => {
             el.style.opacity = '0.5';
         });
     }
 
-  wp.on('dragend', async () => {
-    rebuildRoutePoints();
+    // FIX: Simplified dragend. We do NOT snap back to the old route.
+    // We simply update the route to pass through the new drag location.
+    wp.on('dragend', () => {
+        el.style.opacity = isMobile ? '0.7' : '0.9'; // Restore opacity
+        
+        // 1. Rebuild points based on where the marker currently IS (user dropped it)
+        rebuildRoutePoints(); 
 
-    // Fetch updated route first
-    await fetchRoute();
+        // 2. Fetch the new route connecting these points
+        fetchRoute();
+    });
 
-    // Snap AGAIN to the new route geometry
-    const snapped = snapToRoute(
-        [wp.getLngLat().lng, wp.getLngLat().lat],
-        window.lastRouteGeometry
-    );
-
-    wp.setLngLat(snapped);
-
-    // Rebuild once more with snapped point
-    rebuildRoutePoints();
-    fetchRoute();
-});
-
-    // CLICK LOGIC: Stop propagation to prevent "double-adding" points on mobile
+    [cite_start]// CLICK LOGIC: Stop propagation to prevent "double-adding" points on mobile [cite: 267]
     el.addEventListener('click', (e) => {
         e.stopPropagation(); 
         const idx = waypointMarkers.indexOf(wp);
@@ -1425,10 +1450,11 @@ const wp = new maplibregl.Marker({
         }
     });
 
-    // Initial fetch for the new point
+    [cite_start]// Initial fetch for the new point [cite: 269]
     fetchRoute();
 }
 
+// Map Click Listeners
 [mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
     if (!routingEnabled) return;
 
@@ -1440,7 +1466,7 @@ const wp = new maplibregl.Marker({
     ];
 
     if (startMarker && endMarker && m.getLayer('route')) {
-        const layersToCheck = isMobile ? ['route', 'route-hitarea'] : ['route'];
+        [cite_start]const layersToCheck = isMobile ? ['route', 'route-hitarea'] : ['route']; // [cite: 271]
         
         // Search the box instead of just the point
         const features = m.queryRenderedFeatures(bbox, { layers: layersToCheck });
@@ -1455,11 +1481,12 @@ const wp = new maplibregl.Marker({
     // If we didn't hit the route, add a normal start/end pin
    if (routingMode === 'trail') {
     addTrailPoint([e.lngLat.lng, e.lngLat.lat]);
-} else {
-    addPin([e.lngLat.lng, e.lngLat.lat]);
-}
+    } else {
+        addPin([e.lngLat.lng, e.lngLat.lat]);
+    }
 }));
 
+// Search Box Listener
 document.getElementById('searchBox').addEventListener('input', (e) => {
     const q = e.target.value;
     clearTimeout(searchTimeout);
