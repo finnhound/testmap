@@ -118,32 +118,33 @@ button:active { transform: scale(0.97); }
 
 
 /* PC Route Info: Larger and more polished */
-.route-info { 
-    position:absolute; 
+.route-info {
+    position: absolute;
     top: 15px;
-    right: auto;
-    left: auto;
-    transform: none;
+
+    /* 🔥 LEFT of the controls */
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 12px 24px; 
-    font: bold 15px 'Inter', sans-serif; 
-    z-index: 26; 
-    border-radius: 25px; 
-    display: none;
+    padding: 12px 24px;
+    font: bold 15px 'Inter', sans-serif;
+    z-index: 26;
+    border-radius: 25px;
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-    letter-spacing: 0.3px;
-    opacity: 0;
-    transition: opacity 0.35s ease, transform 0.35s ease;
     white-space: nowrap;
-    max-width: calc(100vw - 700px);
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+    /* Visibility control */
+    display: block;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .route-info.visible {
     opacity: 1;
-    display: block;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .hint-text {
@@ -719,30 +720,24 @@ localStorage.setItem('mapRouteEnabled', 'false');
 // PC-specific: Setup sliding controls
 if (!isMobile) {
     const controls = document.getElementById('controls');
-    controls.style.right = '90px';
-    controls.style.left = 'auto';
-    controls.style.transform = 'none';
-    controls.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-    controls.style.width = 'auto';
-    controls.style.top = '15px'; // Align with buttons
-    
-    // Position route info pill next to controls
     const routeInfo = document.getElementById('route-info');
-    
+
     function positionRouteInfo() {
-        const controlsRect = controls.getBoundingClientRect();
-        const leftPosition = controlsRect.left - 20; // 20px gap from controls
-        routeInfo.style.right = (window.innerWidth - leftPosition) + 'px';
+        const c = controls.getBoundingClientRect();
+
+        // 🔥 place route-info LEFT of controls
+        routeInfo.style.left =
+            (c.left - routeInfo.offsetWidth - 16) + 'px';
     }
-    
-    // Position initially and on window resize
+
     window.addEventListener('resize', positionRouteInfo);
-    
-    // Also reposition when controls expand/contract
-    const observer = new MutationObserver(positionRouteInfo);
-    observer.observe(controls, { attributes: true, childList: true, subtree: true });
-    
-    // Initial positioning
+
+    new MutationObserver(positionRouteInfo).observe(controls, {
+        attributes: true,
+        childList: true,
+        subtree: true
+    });
+
     setTimeout(positionRouteInfo, 100);
 }
 
@@ -901,6 +896,21 @@ mapHybrid.on('load', () => {
 function setMobileRoutingVisible(visible) {
     if (!isMobile) return;
     document.body.classList.toggle('routing-hidden', !visible);
+}
+
+    function setRoutingEnabled(enabled) {
+    routingEnabled = enabled;
+    localStorage.setItem('mapRouteEnabled', String(enabled));
+
+    if (isMobile) {
+        // 🔥 THIS IS THE FIX
+        document.body.classList.remove('routing-hidden');
+
+        if (!enabled) {
+            clearRoute();
+            setMobileRouteInfoVisible(false);
+        }
+    }
 }
     
 // --- GPS TRACKING ---
@@ -1843,47 +1853,21 @@ document.getElementById('downloadMap').onclick = async () => {
     setLoading(false);
 };
 
-document.getElementById('toggleRoute').onclick = function() {
-    routingEnabled = !routingEnabled;
-    const mode = document.getElementById('mode');
-    const reset = document.getElementById('resetRoute');
-    const routingType = document.getElementById('routingType');
-    
-    if (routingEnabled) {
-        setMobileRoutingVisible(true);
-        this.classList.add('active');
-        
-        // Show routing controls
-        routingType.style.display = 'block';
-        mode.style.display = 'block';
-        reset.style.display = 'block';
-        
-        void mode.offsetWidth; // Trigger reflow
-        requestAnimationFrame(() => {
-            routingType.classList.add('visible');
-            mode.classList.add('visible');
-            reset.classList.add('visible');
-        });
-    } else {
-        setMobileRouteInfoVisible(false);
-        setMobileRoutingVisible(false);
-        this.classList.remove('active');
-        
-        // Hide routing controls
-        routingType.classList.remove('visible');
-        mode.classList.remove('visible');
-        reset.classList.remove('visible');
-        
-        setTimeout(() => {
-            routingType.style.display = 'none';
-            mode.style.display = 'none';
-            reset.style.display = 'none';
-        }, 350);
-        clearRoute();
-    }
-    
+document.getElementById('toggleRoute').onclick = () => {
+    const enabled = !routingEnabled;
+
+    document.getElementById('toggleRoute').classList.toggle('active', enabled);
+
+    setRoutingEnabled(enabled);
+
+    // UI visibility
+    ['mode', 'resetRoute', 'routingType'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.toggle('visible', enabled);
+        el.style.display = enabled ? '' : 'none';
+    });
+
     updateSearchPlaceholder();
-    updateRouteFromLocationButton();
 };
     
 document.getElementById('resetRoute').onclick = clearRoute;
