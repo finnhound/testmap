@@ -1334,7 +1334,19 @@ function addPin(lngLat, isSearch = false) {
     fetchRoute();
 }
 
-    function snapToRoute(lngLat, routeGeojson) {
+The error is happening because isMobile is not defined within the scope of the code block you pasted, or it was lost during the copy-paste process.
+
+The variable isMobile is defined globally at the top of your original script (around line 106 in your source file), but if you are pasting this function into a different context or if that definition was deleted, the code will break.
+
+The Fix
+You should check if isMobile is defined at the top of your script. If it is missing or the function can't see it, you can simply redefine it inside the function to be safe.
+
+Here is the corrected block with a safety check for isMobile:
+
+JavaScript
+
+/* HELPER: Mathematical projection to snap to the visual line segment. */
+function snapToRoute(lngLat, routeGeojson) {
     if (!routeGeojson || !routeGeojson.coordinates) return lngLat;
     
     const pt = { x: lngLat[0], y: lngLat[1] };
@@ -1347,7 +1359,6 @@ function addPin(lngLat, isSearch = false) {
         const start = { x: coords[i][0], y: coords[i][1] };
         const end = { x: coords[i+1][0], y: coords[i+1][1] };
 
-        // Project point onto line segment
         const C = end.x - start.x;
         const D = end.y - start.y;
         const dot = (pt.x - start.x) * C + (pt.y - start.y) * D;
@@ -1378,22 +1389,23 @@ function addPin(lngLat, isSearch = false) {
             closestPoint = { x: xx, y: yy };
         }
     }
-
     return [closestPoint.x, closestPoint.y];
 }
-    
+
+/* MAIN FUNCTION: Updated to fix drag behavior */
 function addWaypoint(lngLat) {
+    // Safety check for isMobile
+    const isMobileCheck = (typeof isMobile !== 'undefined') ? isMobile : (window.innerWidth <= 768);
+
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
     
-    [cite_start]// UI Styling: Smaller and semi-transparent on mobile [cite: 257]
     el.style.cursor = 'move';
     el.style.borderRadius = '50%';
     el.style.boxShadow = '0 3px 10px rgba(0,0,0,0.4)';
     el.style.border = '3px solid white';
     
-    if (isMobile) {
-        [cite_start]// CRITICAL: Prevents the map from scrolling/panning while you drag the dot [cite: 259]
+    if (isMobileCheck) {
         el.style.touchAction = 'none'; 
         el.style.width = '24px'; 
         el.style.height = '24px';
@@ -1405,7 +1417,6 @@ function addWaypoint(lngLat) {
         el.style.background = 'rgba(139, 138, 235, 0.9)'; 
     }
 
-    // Snap the INITIAL click to the route visually
     const snapped = snapToRoute(lngLat, window.lastRouteGeometry);
 
     const wp = new maplibregl.Marker({
@@ -1414,31 +1425,22 @@ function addWaypoint(lngLat) {
         anchor: 'center'
     }).setLngLat(snapped).addTo(activeMap);
 
-    [cite_start]// Insert point into the array correctly BEFORE the final destination [cite: 264]
     const insertIndex = routePoints.length - 1;
-    routePoints.splice(insertIndex, 0, snapped); // Use snapped coord for initial placement
+    routePoints.splice(insertIndex, 0, snapped);
     waypointMarkers.push(wp);
 
-    [cite_start]// DRAG LOGIC: Move waypoint to finger position on mobile [cite: 265]
-    if (isMobile) {
+    if (isMobileCheck) {
         wp.on('drag', () => {
             el.style.opacity = '0.5';
         });
     }
 
-    // FIX: Simplified dragend. We do NOT snap back to the old route.
-    // We simply update the route to pass through the new drag location.
     wp.on('dragend', () => {
-        el.style.opacity = isMobile ? '0.7' : '0.9'; // Restore opacity
-        
-        // 1. Rebuild points based on where the marker currently IS (user dropped it)
+        el.style.opacity = isMobileCheck ? '0.7' : '0.9';
         rebuildRoutePoints(); 
-
-        // 2. Fetch the new route connecting these points
         fetchRoute();
     });
 
-    [cite_start]// CLICK LOGIC: Stop propagation to prevent "double-adding" points on mobile [cite: 267]
     el.addEventListener('click', (e) => {
         e.stopPropagation(); 
         const idx = waypointMarkers.indexOf(wp);
@@ -1450,7 +1452,6 @@ function addWaypoint(lngLat) {
         }
     });
 
-    [cite_start]// Initial fetch for the new point [cite: 269]
     fetchRoute();
 }
 
@@ -1458,27 +1459,25 @@ function addWaypoint(lngLat) {
 [mapStreets, mapHybrid].forEach(m => m.on('click', (e) => {
     if (!routingEnabled) return;
 
-    // FIX: Create a bounding box around the click point.
-    // This is required for 'queryRenderedFeatures' to work on scaled CSS maps.
+    // Safety check for isMobile
+    const isMobileCheck = (typeof isMobile !== 'undefined') ? isMobile : (window.innerWidth <= 768);
+
     const bbox = [
         [e.point.x - 10, e.point.y - 10],
         [e.point.x + 10, e.point.y + 10]
     ];
 
     if (startMarker && endMarker && m.getLayer('route')) {
-        [cite_start]const layersToCheck = isMobile ? ['route', 'route-hitarea'] : ['route']; // [cite: 271]
+        const layersToCheck = isMobileCheck ? ['route', 'route-hitarea'] : ['route'];
         
-        // Search the box instead of just the point
         const features = m.queryRenderedFeatures(bbox, { layers: layersToCheck });
         
         if (features.length > 0) { 
-            // We hit the route! Add a waypoint.
             addWaypoint([e.lngLat.lng, e.lngLat.lat]); 
             return; 
         }
     }
     
-    // If we didn't hit the route, add a normal start/end pin
    if (routingMode === 'trail') {
     addTrailPoint([e.lngLat.lng, e.lngLat.lat]);
     } else {
