@@ -115,6 +115,21 @@ button, select {
 button:hover, select:hover { background: #f5f5f5; }
 button:active { transform: scale(0.97); }
 
+    /* PC ONLY: Stack routing controls vertically */
+@media screen and (min-width: 769px) {
+    .mobile-routing-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    #routeType,
+    #mode {
+        width: 100% !important;
+    }
+}
+
 /* PC Route Info: Larger and more polished */
 .route-info { 
     position:absolute; 
@@ -1155,11 +1170,23 @@ function formatTime(minutes) {
     return `${Math.round(minutes)} min`;
 }
 
+let currentFetchController = null; // Track ongoing fetch requests
+
 function fetchRoute(retryCount = 0) {
     const MAX_RETRIES = 3;
     
     // Only fetch if we have at least a start and an end
     if (routePoints.length < 2 || !routePoints[0] || !routePoints[routePoints.length - 1]) return;
+    
+    // Cancel any ongoing fetch request
+    if (currentFetchController) {
+        currentFetchController.abort();
+        console.log('Cancelled previous fetch request');
+    }
+    
+    // Create new abort controller for this fetch
+    currentFetchController = new AbortController();
+    const signal = currentFetchController.signal;
     
     setLoading(true);
     
@@ -1169,7 +1196,8 @@ function fetchRoute(retryCount = 0) {
             "Authorization": ORS_KEY, 
             "Content-Type": "application/json" 
         },
-        body: JSON.stringify({ coordinates: routePoints })
+        body: JSON.stringify({ coordinates: routePoints }),
+        signal: signal // Add abort signal
     })
     .then(res => {
         if (!res.ok) {
@@ -1183,6 +1211,8 @@ function fetchRoute(retryCount = 0) {
             throw new Error("Invalid route data received");
         }
         
+        // SUCCESS - Clear the fetch controller
+        currentFetchController = null;
         setLoading(false);
         
         const feat = data.features[0];
@@ -1258,6 +1288,12 @@ function fetchRoute(retryCount = 0) {
         }
     })
     .catch(err => {
+        // If request was aborted, don't retry
+        if (err.name === 'AbortError') {
+            console.log('Fetch aborted - new request started');
+            return;
+        }
+        
         console.error(`Fetch error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, err);
         
         // Retry logic
@@ -1265,10 +1301,14 @@ function fetchRoute(retryCount = 0) {
             console.log(`Retrying in 1.5 seconds...`);
             // Keep loading bar active during retry wait
             setTimeout(() => {
-                fetchRoute(retryCount + 1);
+                // Only retry if no new fetch was started
+                if (currentFetchController && currentFetchController.signal === signal) {
+                    fetchRoute(retryCount + 1);
+                }
             }, 1500);
         } else {
             // Failed after all retries
+            currentFetchController = null;
             setLoading(false);
             alert(`Unable to calculate route after ${MAX_RETRIES + 1} attempts. Please check your connection or try different points.`);
         }
@@ -1289,11 +1329,14 @@ function addPin(lngLat, isSearch = false) {
     el.style.height = pinSize+'px';
     el.style.cursor = 'move';
     
-    // Critical for mobile drag
+    // Critical for mobile drag - FIXED
     if (isMobile) {
         el.style.touchAction = 'none';
         el.style.userSelect = 'none';
         el.style.webkitUserSelect = 'none';
+        el.style.webkitTouchCallout = 'none';
+        el.style.position = 'relative';
+        el.style.zIndex = '1000';
     }
     
     el.innerHTML = type === 'start' ? 
@@ -1330,14 +1373,31 @@ function addPin(lngLat, isSearch = false) {
         fetchRoute();
     });
     
-    // Better mobile tap handling
+    // FIXED: Better mobile drag handling
     if (isMobile) {
-        m.on('drag', () => {
-            // Provide feedback during drag
+        let isDragging = false;
+        
+        m.on('dragstart', () => {
+            isDragging = true;
             el.style.opacity = '0.8';
+            el.style.transform = 'scale(1.1)';
+            // Disable map dragging while dragging marker
+            activeMap.dragPan.disable();
         });
+        
+        m.on('drag', () => {
+            // Visual feedback during drag
+            el.style.opacity = '0.7';
+        });
+        
         m.on('dragend', () => {
+            isDragging = false;
             el.style.opacity = '1';
+            el.style.transform = 'scale(1)';
+            // Re-enable map dragging
+            setTimeout(() => {
+                activeMap.dragPan.enable();
+            }, 100);
         });
     }
     
@@ -1422,9 +1482,6 @@ function snapToRoute(lngLat, routeGeojson) {
 
 /* MAIN FUNCTION: Updated to fix drag behavior */
 function addWaypoint(lngLat) {
-    // Safety check for isMobile
-    const isMobileCheck = (typeof isMobile !== 'undefined') ? isMobile : (window.innerWidth <= 768);
-
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
     
@@ -1433,8 +1490,13 @@ function addWaypoint(lngLat) {
     el.style.boxShadow = '0 3px 10px rgba(0,0,0,0.4)';
     el.style.border = '3px solid white';
     
-    if (isMobileCheck) {
-        el.style.touchAction = 'none'; 
+    if (isMobile) {
+        el.style.touchAction = 'none';
+        el.style.userSelect = 'none';
+        el.style.webkitUserSelect = 'none';
+        el.style.webkitTouchCallout = 'none';
+        el.style.position = 'relative';
+        el.style.zIndex = '1000';
         el.style.width = '24px'; 
         el.style.height = '24px';
         el.style.background = '#8b8aeb';
@@ -1445,9 +1507,10 @@ function addWaypoint(lngLat) {
         el.style.background = 'rgba(139, 138, 235, 0.9)'; 
     }
 
-    const snapped = snapToRoute(lngLat, window.lastRouteGeometry);
+    const snapped = window.lastRouteGeometry ? 
+        snapToRoute(lngLat, window.lastRouteGeometry) : lngLat;
 
-    const wp = new maplibregl.Marker({
+    const wp = new maplibregl.Marker({ 
         element: el, 
         draggable: true,
         anchor: 'center'
@@ -1457,17 +1520,36 @@ function addWaypoint(lngLat) {
     routePoints.splice(insertIndex, 0, snapped);
     waypointMarkers.push(wp);
 
-    if (isMobileCheck) {
-        wp.on('drag', () => {
+    if (isMobile) {
+        let isDragging = false;
+        
+        wp.on('dragstart', () => {
+            isDragging = true;
             el.style.opacity = '0.5';
+            el.style.transform = 'scale(1.2)';
+            activeMap.dragPan.disable();
+        });
+        
+        wp.on('drag', () => {
+            el.style.opacity = '0.4';
+        });
+        
+        wp.on('dragend', () => {
+            isDragging = false;
+            el.style.opacity = '0.7';
+            el.style.transform = 'scale(1)';
+            setTimeout(() => {
+                activeMap.dragPan.enable();
+            }, 100);
+            rebuildRoutePoints();
+            fetchRoute();
+        });
+    } else {
+        wp.on('dragend', () => {
+            rebuildRoutePoints();
+            fetchRoute();
         });
     }
-
-    wp.on('dragend', () => {
-        el.style.opacity = isMobileCheck ? '0.7' : '0.9';
-        rebuildRoutePoints(); 
-        fetchRoute();
-    });
 
     el.addEventListener('click', (e) => {
         e.stopPropagation(); 
