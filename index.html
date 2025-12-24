@@ -419,6 +419,27 @@ body.route-active .route-info {
         transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
         visibility 0s;
 }
+
+    /* MOBILE: Route Type and Mode side-by-side */
+.mobile-routing-row {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+}
+
+#routingType,
+#mode { 
+    flex: 1;
+    width: auto !important;
+    height: 75px !important;
+    font-size: 28px !important;
+    font-weight: bold;
+    border-radius: 16px;
+    margin: 0;
+    padding: 0 20px;
+    box-sizing: border-box;
+    display: none;
+}
     
 /* ===============================
    MOBILE SEARCH / ROUTING GUI — FADE + SCALE TRANSITION
@@ -578,15 +599,17 @@ body.location-mode #controls {
 <div id="controls">
   <input id="searchBox" type="text" placeholder="Search"/>
   <div id="searchResults"></div>
+  <div class="mobile-routing-row">
     <select id="routingType" style="display:none;">
-  <option value="classic">Classic</option>
-  <option value="trail">Trail</option>
-</select>
-  <select id="mode" style="display:none;">
-    <option value="driving-car">🚗 Car</option>
-    <option value="foot-walking">🚶 Walk</option>
-    <option value="cycling-regular">🚴 Bike</option>
-  </select>
+      <option value="classic">Classic</option>
+      <option value="trail">Trail</option>
+    </select>
+    <select id="mode" style="display:none;">
+      <option value="driving-car">🚗 Car</option>
+      <option value="foot-walking">🚶 Walk</option>
+      <option value="cycling-regular">🚴 Bike</option>
+    </select>
+  </div>
   <button id="resetRoute" style="display:none;">Reset</button>
 </div>
 
@@ -1132,7 +1155,9 @@ function formatTime(minutes) {
     return `${Math.round(minutes)} min`;
 }
 
-function fetchRoute() {
+function fetchRoute(retryCount = 0) {
+    const MAX_RETRIES = 3;
+    
     // Only fetch if we have at least a start and an end
     if (routePoints.length < 2 || !routePoints[0] || !routePoints[routePoints.length - 1]) return;
     
@@ -1147,12 +1172,18 @@ function fetchRoute() {
         body: JSON.stringify({ coordinates: routePoints })
     })
     .then(res => {
-        if (!res.ok) throw new Error("Routing failed");
+        if (!res.ok) {
+            throw new Error(`Routing failed with status ${res.status}`);
+        }
         return res.json();
     })
     .then(data => {
+        // Validate response
+        if (!data.features || data.features.length === 0 || !data.features[0].geometry) {
+            throw new Error("Invalid route data received");
+        }
+        
         setLoading(false);
-        if (!data.features || data.features.length === 0) return;
         
         const feat = data.features[0];
         window.lastRouteGeometry = feat.geometry;
@@ -1170,7 +1201,6 @@ function fetchRoute() {
         if (!isMobile) {
             setTimeout(() => {
                 routeInfo.classList.add('visible');
-                // Reposition after content changes
                 const controls = document.getElementById('controls');
                 const controlsRect = controls.getBoundingClientRect();
                 const leftPosition = controlsRect.left - 20;
@@ -1182,14 +1212,12 @@ function fetchRoute() {
 
         // Draw line on both maps
         [mapStreets, mapHybrid].forEach(m => {
-            // Clean up old route safely
             if (m.getLayer('route-hitarea')) m.removeLayer('route-hitarea');
             if (m.getLayer('route')) m.removeLayer('route');
             if (m.getSource('route')) m.removeSource('route');
 
             m.addSource('route', { type: 'geojson', data: feat.geometry });
 
-            /* Visible route */
             m.addLayer({
                 id: 'route',
                 type: 'line',
@@ -1201,7 +1229,6 @@ function fetchRoute() {
                 }
             });
 
-            /* Invisible hit area for mobile taps */
             m.addLayer({
                 id: 'route-hitarea',
                 type: 'line',
@@ -1222,17 +1249,29 @@ function fetchRoute() {
             return bounds.extend(coord);
         }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
         
-if (shouldPanToRoute && routingMode !== 'trail') {
-    activeMap.fitBounds(bounds, {
-        padding: isMobile ? 120 : 100,
-        duration: 1000
-    });
-    shouldPanToRoute = false;
-}
+        if (shouldPanToRoute && routeType !== 'trail') {
+            activeMap.fitBounds(bounds, {
+                padding: isMobile ? 120 : 100,
+                duration: 1000
+            });
+            shouldPanToRoute = false;
+        }
     })
     .catch(err => {
-        console.error("Fetch error:", err);
-        setLoading(false);
+        console.error(`Fetch error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, err);
+        
+        // Retry logic
+        if (retryCount < MAX_RETRIES) {
+            console.log(`Retrying in 1.5 seconds...`);
+            // Keep loading bar active during retry wait
+            setTimeout(() => {
+                fetchRoute(retryCount + 1);
+            }, 1500);
+        } else {
+            // Failed after all retries
+            setLoading(false);
+            alert(`Unable to calculate route after ${MAX_RETRIES + 1} attempts. Please check your connection or try different points.`);
+        }
     });
 }
 
