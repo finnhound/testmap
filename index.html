@@ -574,6 +574,10 @@ body.location-mode #controls {
 <div id="controls">
   <input id="searchBox" type="text" placeholder="Search"/>
   <div id="searchResults"></div>
+    <select id="routingType" style="display:none;">
+  <option value="classic">Classic</option>
+  <option value="trail">Trail</option>
+</select>
   <select id="mode" style="display:none;">
     <option value="driving-car">🚗 Car</option>
     <option value="foot-walking">🚶 Walk</option>
@@ -626,6 +630,11 @@ const pinSize = isMobile ? 48 : 40;
 const savedView = JSON.parse(localStorage.getItem('mapView') || 'null');
 let currentStyle = localStorage.getItem('mapStyle') || 'streets';
 let routingEnabled = JSON.parse(localStorage.getItem('mapRouteEnabled') || 'false');
+    let routingMode = 'classic';
+
+document.getElementById('routingType').onchange = (e) => {
+    routingMode = e.target.value;
+};
 let watchId = null;
 let currentCoords = null;
 let searchTimeout = null;
@@ -1291,6 +1300,31 @@ function addPin(lngLat, isSearch = false) {
     updateSearchPlaceholder();
 }
 
+    function addTrailPoint(lngLat) {
+
+    // 1️⃣ No start yet → set start
+    if (!startMarker) {
+        addPin(lngLat);
+        return;
+    }
+
+    // 2️⃣ Start exists, no end → set end
+    if (!endMarker) {
+        addPin(lngLat);
+        return;
+    }
+
+    // 3️⃣ Start + End exist → convert old end to waypoint
+    const prevEnd = endMarker.getLngLat();
+    endMarker.remove();
+    endMarker = null;
+
+    addWaypoint([prevEnd.lng, prevEnd.lat]);
+
+    // 4️⃣ New click becomes new end
+    addPin(lngLat);
+}
+
 function addWaypoint(lngLat) {
     const activeMap = currentStyle === 'streets' ? mapStreets : mapHybrid;
     const el = document.createElement('div');
@@ -1380,7 +1414,11 @@ function addWaypoint(lngLat) {
     }
     
     // If we didn't hit the route, add a normal start/end pin
+   if (routingMode === 'trail') {
+    addTrailPoint([e.lngLat.lng, e.lngLat.lat]);
+} else {
     addPin([e.lngLat.lng, e.lngLat.lat]);
+}
 }));
 
 document.getElementById('searchBox').addEventListener('input', (e) => {
@@ -1514,7 +1552,13 @@ function handleSearchSelection(item, searchInput) {
     
     activeMap.flyTo({center: loc, zoom: 14, duration: 1500});
     
-    if(routingEnabled) addPin(loc, true);
+    if (routingEnabled) {
+    if (routingMode === 'trail') {
+        addTrailPoint(loc);
+    } else {
+        addPin(loc, true);
+    }
+}
     
     // Close dropdown and clear search
     document.getElementById('searchResults').style.display = 'none'; 
@@ -1660,6 +1704,12 @@ document.getElementById('toggleRoute').onclick = function() {
     routingEnabled = !routingEnabled;
     const mode = document.getElementById('mode');
     const reset = document.getElementById('resetRoute');
+const routingType = document.getElementById('routingType');
+
+routingType.style.display = 'block';
+void routingType.offsetWidth;
+routingType.classList.add('visible');
+
     
     if (routingEnabled) {
         setMobileRoutingVisible(true);
@@ -1674,6 +1724,13 @@ document.getElementById('toggleRoute').onclick = function() {
             reset.classList.add('visible');
         });
     } else {
+const routingType = document.getElementById('routingType');
+
+routingType.classList.remove('visible');
+setTimeout(() => {
+    routingType.style.display = 'none';
+}, 350);
+        
         setMobileRouteInfoVisible(false);
         setMobileRoutingVisible(false);
         this.classList.remove('active');
