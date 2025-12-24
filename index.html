@@ -114,7 +114,7 @@ button, select {
 }
 button:hover, select:hover { background: #f5f5f5; }
 button:active { transform: scale(0.97); }
-
+}
 
 
 /* PC Route Info: Larger and more polished */
@@ -429,38 +429,18 @@ body.route-active .route-info {
     width: 100%;
 }
 
- #routeType,
-    #mode { 
-        flex: 1;
-        min-width: 0; /* Allow flex items to shrink below content size */
-        width: 100% !important;
-        height: 75px !important;
-        font-size: 28px !important;
-        font-weight: bold;
-        border-radius: 16px;
-        margin: 0;
-        padding: 0 20px;
-        box-sizing: border-box;
-        display: none;
-    }
-
-    #resetRoute {
-        width: 100% !important;
-        height: 75px !important;
-        font-size: 28px !important;
-        font-weight: bold;
-        border-radius: 16px;
-        margin: 0;
-        padding: 0 20px;
-        box-sizing: border-box;
-        display: none;
-    }
-
-    #routeType.visible,
-    #mode.visible,
-    #resetRoute.visible {
-        display: block !important;
-    }
+#routingType,
+#mode { 
+    flex: 1;
+    width: auto !important;
+    height: 75px !important;
+    font-size: 28px !important;
+    font-weight: bold;
+    border-radius: 16px;
+    margin: 0;
+    padding: 0 20px;
+    box-sizing: border-box;
+    display: none;
 }
     
 /* ===============================
