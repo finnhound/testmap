@@ -295,15 +295,7 @@ button:active { transform: scale(0.97); }
 /* ===============================
    MOBILE UI (PORTRAIT) — RESTRUCTURED ROUTING GUI
    =============================== */
-@media screen and (max-width: 768px) and (orientation: portrait) {
-    #controls {
-        flex-direction: column; /* Mobile is vertical stack */
-        width: 480px; 
-        max-width: 75vw;
-        right: 20px;
-        left: auto;
-        transform: none;
-    }
+@media screen and (orientation: portrait) {
 
     html, body {
         background: #000;
@@ -1202,7 +1194,7 @@ if (shouldPanToRoute && routingMode !== 'trail') {
     shouldPanToRoute = false;
 }
     })
- } catch (err) {
+    .catch(err => {
 console.error("Routing Error:", err);
         // Show user-friendly error
         const routeInfo = document.getElementById('route-info');
