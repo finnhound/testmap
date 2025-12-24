@@ -281,7 +281,7 @@ button:active { transform: scale(0.97); }
 }
 
 /* ===============================
-   MOBILE UI (PORTRAIT) — RESTRUCTURED ROUTING GUI
+   MOBILE UI (PORTRAIT) — UPDATED LAYOUT
    =============================== */
 @media screen and (orientation: portrait) {
 
@@ -291,7 +291,7 @@ button:active { transform: scale(0.97); }
     }
 
     /* ===============================
-        MAP — KEEP INTENTIONAL SCALING
+       MAP — KEEP INTENTIONAL SCALING
        =============================== */
     #map-streets,
     #map-hybrid {
@@ -302,80 +302,62 @@ button:active { transform: scale(0.97); }
         position: absolute;
     }
 
-    /* ===============================
-        UNIFORM HUGE UI — TOP RIGHT
+/* ===============================
+       UNIFORM HUGE UI — TOP RIGHT
        =============================== */
     #controls {
-        position: fixed !important;
-        top: 20px !important;
-        right: 20px !important;
-        left: auto !important;
-        bottom: auto !important;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        left: auto; 
         
-        width: 480px; 
-        max-width: 75vw; 
+        /* Fixed width ensures all children (dropdown/button) match */
+        width: 450px; 
+        max-width: 65vw; 
         
         display: flex;
-        flex-wrap: wrap; /* Allows the toggles to sit side-by-side and button to wrap */
-        gap: 12px; 
-        padding: 18px;
+        flex-direction: column;
+        gap: 15px; /* Consistent spacing between elements */
+        padding: 20px;
         border-radius: 24px;
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(15px);
-        z-index: 150;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 100;
         box-shadow: 0 15px 45px rgba(0,0,0,0.4);
-
-        /* Animation */
-        opacity: 1;
-        transform-origin: top right;
-        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* SEARCH BAR - FULL WIDTH AT TOP */
     #searchBox {
-        width: 100% !important;
-        height: 85px !important;
+        width: 100%; /* Spans full width of #controls */
+        height: 85px; /* Massive height */
         font-size: 32px !important;
         padding: 0 25px;
         border-radius: 16px;
         border: 2px solid #ddd;
-        box-sizing: border-box;
+        box-sizing: border-box; /* Crucial for uniformity */
     }
 
-    /* TOP ROW ROUTING GUI: HALF AND HALF TOGGLES */
-    #mode.visible,
-    #routingType.visible {
-        display: block !important;
-        /* Calculate 50% minus half the gap */
-        width: calc(50% - 6px) !important; 
-        height: 75px !important;
-        font-size: 24px !important;
+    /* DROPDOWN & RESET BUTTON UNIFORMITY */
+    #mode, 
+    #resetRoute {
+        width: 100% !important; /* Forces same width as search bar */
+        height: 75px !important; /* Slightly shorter than search for visual hierarchy */
+        font-size: 28px !important;
         font-weight: bold;
         border-radius: 16px;
-        margin: 0 !important;
-        padding: 0 10px;
+        margin: 0; /* Reset margins */
+        padding: 0 20px;
         box-sizing: border-box;
+        display: none; /* Controlled by .visible in JS */
     }
 
-    /* BOTTOM ROW: RESET BUTTON FULL LENGTH */
+    /* Ensure display:block doesn't break the width when visible */
+    #mode.visible, 
     #resetRoute.visible {
         display: block !important;
-        width: 100% !important; /* Forces full length below the toggles */
-        height: 80px !important;
-        font-size: 28px !important;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        background: #ff3b30;
-        color: white;
-        border: none;
-        border-radius: 16px;
-        margin: 5px 0 0 0 !important;
-        box-sizing: border-box;
     }
 
     #searchResults {
-        top: 115px;
+        top: 115px; /* Adjusted for taller search box */
         width: 100%;
         border-radius: 16px;
     }
@@ -385,78 +367,167 @@ button:active { transform: scale(0.97); }
         font-size: 28px;
     }
 
+/* ===============================
+   MOBILE ROUTE INFO PILL — REAL DISAPPEAR FIX
+   =============================== */
+.route-info {
+    position: fixed !important;
+    top: 20px !important;
+    left: 20px !important;
+
+    font-size: 40px !important;
+    font-weight: 900;
+    color: white;
+
+    height: 110px;
+    padding: 0 48px;
+    border-radius: 70px;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+
+    line-height: 1 !important;
+    white-space: nowrap;
+
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 12px 45px rgba(0,0,0,0.65);
+    z-index: 160;
+
+    /* 🔥 ACTUAL HIDE STATE */
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.92);
+    pointer-events: none;
+
+    transition:
+        opacity 0.35s ease,
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s linear 0.35s; /* delay hide */
+}
+
+/* 🔥 ACTUAL SHOW STATE */
+body.route-active .route-info {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+    pointer-events: auto;
+
+    transition:
+        opacity 0.35s ease,
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s;
+}
+    
+/* ===============================
+   MOBILE SEARCH / ROUTING GUI — FADE + SCALE TRANSITION
+   =============================== */
+#controls {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    transform: none !important; /* never center */
+    margin: 0 !important;
+
+    z-index: 150 !important;
+
+    /* 🔥 ANIMATION */
+    opacity: 1;
+    transform-origin: top right;
+    transition:
+        opacity 0.35s ease,
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* HIDDEN STATE (GPS MODE OR OFF) */
+body.location-mode #controls,
+body.routing-hidden #controls {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.94);
+}
+    
+/* ===============================
+   HIDE ROUTING GUI DURING LOCATION MODE
+   =============================== */
+body.location-mode #controls {
+    display: none !important;
+}
     /* ===============================
-       MOBILE ROUTE INFO PILL
+       BOTTOM BUTTON BAR — BOTTOM RIGHT MOBILE!!!
        =============================== */
-    .route-info {
+    #toggleRoute,
+    #gpsToggle,
+    #downloadMap,
+    #hybridToggle {
         position: fixed !important;
-        top: 20px !important;
-        left: 20px !important;
-        font-size: 40px !important;
-        font-weight: 900;
-        color: white;
-        height: 110px;
-        padding: 0 48px;
-        border-radius: 70px;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-        white-space: nowrap;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        box-shadow: 0 12px 45px rgba(0,0,0,0.65);
-        z-index: 160;
-        opacity: 0;
-        visibility: hidden;
-        transform: scale(0.92);
-        pointer-events: none;
-        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s;
-    }
-
-    body.route-active .route-info {
-        opacity: 1;
-        visibility: visible;
-        transform: scale(1);
-        pointer-events: auto;
-        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
-    }
-
-    /* HIDDEN STATES */
-    body.location-mode #controls { display: none !important; }
-    body.routing-hidden #controls {
-        opacity: 0;
-        pointer-events: none;
-        transform: scale(0.94);
-    }
-
-    /* ===============================
-       BOTTOM BUTTON BAR — BOTTOM RIGHT
-       =============================== */
-    #toggleRoute, #gpsToggle, #downloadMap, #hybridToggle {
-        position: fixed !important;
-        right: 20px !important;
-        width: 85px !important;
-        height: 85px !important;
+        right: 20px !important; /* BOTTOM RIGHT ALIGNMENT */
+        width: 85px !important; /* Large buttons */
+        height: 85px !important; /* Large buttons */
         z-index: 25 !important;
+        transform: none !important;
         border-radius: 15px !important;
         left: auto !important;
         top: auto !important;
     }
 
-    #toggleRoute { bottom: 320px !important; } 
-    #gpsToggle    { bottom: 220px !important; } 
-    #downloadMap  { bottom: 120px !important; } 
-    #hybridToggle { bottom: 20px !important; }
+    /* MOBILE BOTTOM RIGHT BUTTON STACK */
+    #toggleRoute { 
+        right: 20px !important; 
+        bottom: 320px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
+    #gpsToggle    { 
+        right: 20px !important; 
+        bottom: 220px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
+    #downloadMap  { 
+        right: 20px !important; 
+        bottom: 120px !important; 
+        left: auto !important;
+        top: auto !important;
+    } 
 
-    #toggleRoute svg, #gpsToggle svg, #downloadMap svg, #hybridToggle img {
-        width: 45px !important;
-        height: 45px !important;
+
+    
+    #hybridToggle { 
+        right: 20px !important; 
+        bottom: 20px !important; 
+        left: auto !important;
+        top: auto !important;
     }
 
-    #toggleRoute:hover, #gpsToggle:hover, #downloadMap:hover, #hybridToggle:hover {
-        transform: none !important;
+    /* Large icons for mobile */
+    #toggleRoute svg,
+    #gpsToggle svg,
+    #downloadMap svg {
+        width: 45px !important; /* Large icons */
+        height: 45px !important; /* Large icons */
     }
-}
+
+    #hybridToggle img {
+        width: 45px !important; /* Large icons */
+        height: 45px !important; /* Large icons */
+    }
+
+    /* Disable hover/active scale conflicts */
+    #toggleRoute:hover,
+    #gpsToggle:hover,
+    #downloadMap:hover,
+    #hybridToggle:hover,
+    #toggleRoute:active,
+    #gpsToggle:active,
+    #downloadMap:active,
+    #hybridToggle:active {
+        transform: none;
+    }
 
     /* ===============================
        ATTRIBUTION — MUCH LARGER
