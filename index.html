@@ -1330,7 +1330,7 @@ function fetchRoute(retryCount = 0) {
             });
             shouldPanToRoute = false;
         }
-    })
+    }
     .catch(err => {
         // If request was aborted, don't retry
         if (err.name === 'AbortError') {
