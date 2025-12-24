@@ -599,6 +599,44 @@ body.location-mode #controls {
     }
 }
 
+    /* ===============================
+   PC ROUTE INFO — HARD OVERRIDE
+   =============================== */
+@media (min-width: 769px) {
+
+  #route-info.route-info {
+      position: absolute !important;
+      top: 15px !important;
+
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      color: #ffffff !important;
+
+      padding: 12px 24px !important;
+      font: 600 15px 'Inter', sans-serif !important;
+
+      border-radius: 999px !important;
+      box-shadow: 0 6px 20px rgba(102,126,234,0.45) !important;
+
+      white-space: nowrap !important;
+      z-index: 999 !important;
+
+      display: block !important;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+
+      transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+  }
+
+  #route-info.route-info.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+  }
+}
+
 </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
@@ -777,7 +815,7 @@ function clearRoute() {
     routeInfo.style.display = 'none';
     
     if (!isMobile) {
-        routeInfo.classList.remove('visible');
+    document.getElementById('route-info').classList.remove('visible');
         setTimeout(() => {
             routeInfo.style.display = 'none';
         }, 350);
@@ -1227,6 +1265,9 @@ function fetchRoute(retryCount = 0) {
         const timeStr = formatTime(timeMinutes);
         const routeInfo = document.getElementById('route-info');
         routeInfo.innerHTML = `<b>${dist} km</b> | ${timeStr}`;
+        if (!isMobile) {
+    routeInfo.classList.add('visible');
+    positionRouteInfoPC();
         setMobileRouteInfoVisible(true);
         routeInfo.style.display = 'block';
         
@@ -1321,6 +1362,30 @@ function fetchRoute(retryCount = 0) {
 function setMobileRouteInfoVisible(visible) {
     if (!isMobile) return;
     document.body.classList.toggle('route-active', visible);
+}
+
+    if (!isMobile) {
+    const controls = document.getElementById('controls');
+    const routeInfo = document.getElementById('route-info');
+
+    function positionRouteInfoPC() {
+        if (!routeInfo.classList.contains('visible')) return;
+
+        const c = controls.getBoundingClientRect();
+        const w = routeInfo.getBoundingClientRect().width;
+
+        routeInfo.style.left = (c.left - w - 16) + 'px';
+    }
+
+    window.addEventListener('resize', positionRouteInfoPC);
+
+    new MutationObserver(positionRouteInfoPC).observe(controls, {
+        attributes: true,
+        childList: true,
+        subtree: true
+    });
+
+    window.positionRouteInfoPC = positionRouteInfoPC;
 }
     
 function addPin(lngLat, isSearch = false) {
@@ -1904,6 +1969,7 @@ document.getElementById('mode').onchange = () => {
     }
 };
 
+    
 // Route from location button
 document.getElementById('routeFromLocation').onclick = async () => {
     if (!currentCoords) {
